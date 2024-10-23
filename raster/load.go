@@ -10,7 +10,7 @@ import (
 var R *Registry
 
 type RasterData struct {
-	bands map[int][]float64
+	bands [][]float64
 }
 
 type Registry struct {
@@ -34,7 +34,7 @@ func Load(filename string) error {
 	defer ds.Close()
 
 	rd := RasterData{
-		bands: make(map[int][]float64),
+		bands: make([][]float64, 0),
 	}
 
 	bands := ds.Bands()
@@ -47,7 +47,7 @@ func Load(filename string) error {
 			return err
 		}
 
-		rd.bands[i] = bandData
+		rd.bands = append(rd.bands, bandData)
 	}
 
 	R.mx.Lock()
