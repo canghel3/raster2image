@@ -68,7 +68,7 @@ func Render(path string, width, height int, switches []string) (image.Image, err
 		return nil, fmt.Errorf("%s not loaded", base)
 	}
 
-	// Create a new dataset by warping
+	// create a new dataset by warping
 	warped, err := rd.ds.Warp("", switches)
 	if err != nil {
 		return nil, err
@@ -76,17 +76,23 @@ func Render(path string, width, height int, switches []string) (image.Image, err
 
 	switch len(warped.Bands()) {
 	case 1:
-		//grayscale (or apply style)
-		if len(rd.style) == 0 {
-			band := warped.Bands()[0]
-			var data = make([]float64, width*height)
-			err = band.Read(0, 0, data, width, height)
-			if err != nil {
-				return nil, err
-			}
+		if rd.min == 0 && rd.max == 255 {
+			//grayscale (or apply style)
+			if len(rd.style) == 0 {
+				band := warped.Bands()[0]
+				var data = make([]float64, width*height)
+				err = band.Read(0, 0, data, width, height)
+				if err != nil {
+					return nil, err
+				}
 
-			grayscale := render.Grayscale(data, width, height, rd.min, rd.max)
-			return grayscale.Render()
+				grayscale := render.Grayscale(data, width, height, rd.min, rd.max)
+				return grayscale.Render()
+			} else {
+				//style given, so use rgb renderer with the style schema
+			}
+		} else {
+			//requires normalization
 		}
 	case 2:
 		return nil, fmt.Errorf("cannot render raster %s with 2 bands", base)
