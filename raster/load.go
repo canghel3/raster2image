@@ -64,10 +64,12 @@ func Open(path string) error {
 func Load(path string) *GodalDataset {
 	data, exists := R.registry[filepath.Base(path)]
 	if exists {
-		return &GodalDataset{
+		gd := &GodalDataset{
 			data: data,
 			path: path,
 		}
+
+		return gd
 	}
 
 	return nil
@@ -84,7 +86,12 @@ func Release(path string) {
 }
 
 func (gd *GodalDataset) Render(width, height int) (image.Image, error) {
-	warped, err := gd.data.ds.Warp("", []string{
+	copied, err := gd.Copy()
+	if err != nil {
+		return nil, err
+	}
+
+	warped, err := copied.data.ds.Warp("", []string{
 		"-of", "MEM",
 		"-ts", fmt.Sprintf("%d", width), fmt.Sprintf("%d", height),
 	})
@@ -95,20 +102,20 @@ func (gd *GodalDataset) Render(width, height int) (image.Image, error) {
 
 	switch len(warped.Bands()) {
 	case 1:
-		return gd.renderSingleBand(warped, width, height)
+		return copied.renderSingleBand(warped, width, height)
 	case 2:
-		return nil, fmt.Errorf("cannot render raster %s with 2 bands", gd.path)
+		return nil, fmt.Errorf("cannot render raster %s with 2 bands", copied.path)
 	case 3:
 		//rgb
 	case 4:
-		return nil, fmt.Errorf("cannot render raster %s with 4 bands", gd.path)
+		return nil, fmt.Errorf("cannot render raster %s with 4 bands", copied.path)
 	}
 
 	return nil, nil
 }
 
 func (gd *GodalDataset) Copy() (*GodalDataset, error) {
-	c, err := gd.data.ds.Warp("", []string{
+	c, err := gd.data.ds.Translate("", []string{
 		"-of", "MEM",
 	})
 	if err != nil {
@@ -148,6 +155,11 @@ func (gd *GodalDataset) renderSingleBand(warped *godal.Dataset, width, height in
 }
 
 func (gd *GodalDataset) Zoom(bbox [4]float64, srs string) (*GodalDataset, error) {
+	copied, err := gd.Copy()
+	if err != nil {
+		return nil, err
+	}
+
 	options := []string{
 		"-of", "MEM",
 		"-te", fmt.Sprintf("%f", bbox[0]), fmt.Sprintf("%f", bbox[1]), fmt.Sprintf("%f", bbox[2]), fmt.Sprintf("%f", bbox[3]), // Set bounding box
@@ -155,14 +167,14 @@ func (gd *GodalDataset) Zoom(bbox [4]float64, srs string) (*GodalDataset, error)
 		"-te_srs", "EPSG:3857",
 	}
 
-	warp, err := gd.data.ds.Warp("", options)
+	warp, err := copied.data.ds.Warp("", options)
 	if err != nil {
 		return nil, err
 	}
 
 	newGd := &GodalDataset{
-		data: gd.data,
-		path: gd.path,
+		data: copied.data,
+		path: copied.path,
 	}
 
 	newGd.data.ds = warp
