@@ -91,27 +91,11 @@ func (gd *GodalDataset) Render(width, height int) (image.Image, error) {
 	if err != nil {
 		return nil, err
 	}
+	defer warped.Close()
 
 	switch len(warped.Bands()) {
 	case 1:
-		if gd.data.min == 0 && gd.data.max == 255 {
-			//grayscale (or apply style)
-			if len(gd.data.style) == 0 {
-				band := warped.Bands()[0]
-				var data = make([]float64, width*height)
-				err := band.Read(0, 0, data, width, height)
-				if err != nil {
-					return nil, err
-				}
-
-				grayscale := render.Grayscale(data, width, height, gd.data.min, gd.data.max)
-				return grayscale.Render()
-			} else {
-				//style given, so use rgb renderer with the style schema
-			}
-		} else {
-			//requires normalization
-		}
+		return gd.renderSingleBand(warped, width, height)
 	case 2:
 		return nil, fmt.Errorf("cannot render raster %s with 2 bands", gd.path)
 	case 3:
@@ -121,6 +105,46 @@ func (gd *GodalDataset) Render(width, height int) (image.Image, error) {
 	}
 
 	return nil, nil
+}
+
+func (gd *GodalDataset) Copy() (*GodalDataset, error) {
+	c, err := gd.data.ds.Warp("", []string{
+		"-of", "MEM",
+	})
+	if err != nil {
+		return nil, err
+	}
+
+	cpy := &GodalDataset{
+		data: gd.data,
+		path: gd.path,
+	}
+
+	cpy.data.ds = c
+	return cpy, nil
+}
+
+func (gd *GodalDataset) renderSingleBand(warped *godal.Dataset, width, height int) (image.Image, error) {
+	if gd.data.min == 0 && gd.data.max == 255 {
+		//grayscale (or apply style)
+		if len(gd.data.style) == 0 {
+			band := warped.Bands()[0]
+			var data = make([]float64, width*height)
+			err := band.Read(0, 0, data, width, height)
+			if err != nil {
+				return nil, err
+			}
+
+			grayscale := render.Grayscale(data, width, height, gd.data.min, gd.data.max)
+			return grayscale.Render()
+		} else {
+			//style given, so use rgb renderer with the style schema
+			return nil, fmt.Errorf("not implemented")
+		}
+	} else {
+		//requires normalization
+		return nil, fmt.Errorf("cannot render raster %s with values larger than 255", gd.path)
+	}
 }
 
 func (gd *GodalDataset) Zoom(bbox [4]float64, srs string) (*GodalDataset, error) {
@@ -144,6 +168,10 @@ func (gd *GodalDataset) Zoom(bbox [4]float64, srs string) (*GodalDataset, error)
 	newGd.data.ds = warp
 
 	return newGd, nil
+}
+
+func (gd *GodalDataset) Release() error {
+	return gd.data.ds.Close()
 }
 
 func minMaxDs(ds *godal.Dataset) (min, max float64, err error) {

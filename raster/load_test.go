@@ -101,6 +101,10 @@ func TestRender(t *testing.T) {
 	assert.NilError(t, err)
 }
 
+func TestCopy(t *testing.T) {
+	t.Fail()
+}
+
 func BenchmarkRender(b *testing.B) {
 	bbox := [4]float64{1364859.5770601074, 5119446.406427965, 1367305.561965233, 5121892.391333092}
 	zoomed, err := publicGodalDataset.Zoom(bbox, "EPSG:3857")
