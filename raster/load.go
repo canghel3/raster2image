@@ -24,15 +24,21 @@ type Data struct {
 	ds    *godal.Dataset
 }
 
+type GodalDataset struct {
+	data Data
+	path string
+}
+
 func init() {
 	R = &Registry{
 		registry: make(map[string]Data),
 		mx:       sync.Mutex{},
 	}
+	godal.RegisterAll()
 }
 
-// Load reads the given raster file and stores it into the registry.
-func Load(path string) error {
+// Open reads the given raster file and stores it into the registry.
+func Open(path string) error {
 	ds, err := godal.Open(path)
 	if err != nil {
 		return err
@@ -55,38 +61,50 @@ func Load(path string) error {
 	return nil
 }
 
+func Load(path string) *GodalDataset {
+	data, exists := R.registry[filepath.Base(path)]
+	if exists {
+		return &GodalDataset{
+			data: data,
+			path: path,
+		}
+	}
+
+	return nil
+}
+
 func Release(path string) {
 	R.mx.Lock()
+	registry, exists := R.registry[filepath.Base(path)]
+	if exists {
+		registry.ds.Close()
+	}
 	delete(R.registry, filepath.Base(path))
 	R.mx.Unlock()
 }
 
-func Render(path string, width, height int, switches []string) (image.Image, error) {
-	base := filepath.Base(path)
-	rd, exists := R.registry[base]
-	if !exists {
-		return nil, fmt.Errorf("%s not loaded", base)
-	}
-
-	// create a new dataset by warping
-	warped, err := rd.ds.Warp("", switches)
+func (gd *GodalDataset) Render(width, height int) (image.Image, error) {
+	warped, err := gd.data.ds.Warp("", []string{
+		"-of", "MEM",
+		"-ts", fmt.Sprintf("%d", width), fmt.Sprintf("%d", height),
+	})
 	if err != nil {
 		return nil, err
 	}
 
 	switch len(warped.Bands()) {
 	case 1:
-		if rd.min == 0 && rd.max == 255 {
+		if gd.data.min == 0 && gd.data.max == 255 {
 			//grayscale (or apply style)
-			if len(rd.style) == 0 {
+			if len(gd.data.style) == 0 {
 				band := warped.Bands()[0]
 				var data = make([]float64, width*height)
-				err = band.Read(0, 0, data, width, height)
+				err := band.Read(0, 0, data, width, height)
 				if err != nil {
 					return nil, err
 				}
 
-				grayscale := render.Grayscale(data, width, height, rd.min, rd.max)
+				grayscale := render.Grayscale(data, width, height, gd.data.min, gd.data.max)
 				return grayscale.Render()
 			} else {
 				//style given, so use rgb renderer with the style schema
@@ -95,14 +113,37 @@ func Render(path string, width, height int, switches []string) (image.Image, err
 			//requires normalization
 		}
 	case 2:
-		return nil, fmt.Errorf("cannot render raster %s with 2 bands", base)
+		return nil, fmt.Errorf("cannot render raster %s with 2 bands", gd.path)
 	case 3:
 		//rgb
 	case 4:
-		return nil, fmt.Errorf("cannot render raster %s with 4 bands", base)
+		return nil, fmt.Errorf("cannot render raster %s with 4 bands", gd.path)
 	}
 
 	return nil, nil
+}
+
+func (gd *GodalDataset) Zoom(bbox [4]float64, srs string) (*GodalDataset, error) {
+	options := []string{
+		"-of", "MEM",
+		"-te", fmt.Sprintf("%f", bbox[0]), fmt.Sprintf("%f", bbox[1]), fmt.Sprintf("%f", bbox[2]), fmt.Sprintf("%f", bbox[3]), // Set bounding box
+		"-t_srs", srs, // target spatial reference system
+		"-te_srs", "EPSG:3857",
+	}
+
+	warp, err := gd.data.ds.Warp("", options)
+	if err != nil {
+		return nil, err
+	}
+
+	newGd := &GodalDataset{
+		data: gd.data,
+		path: gd.path,
+	}
+
+	newGd.data.ds = warp
+
+	return newGd, nil
 }
 
 func minMaxDs(ds *godal.Dataset) (min, max float64, err error) {
