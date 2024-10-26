@@ -2,7 +2,6 @@ package raster
 
 import (
 	"bytes"
-	"github.com/airbusgeo/godal"
 	"gotest.tools/v3/assert"
 	"image/png"
 	"log"
@@ -196,30 +195,9 @@ goos: linux
 goarch: amd64
 pkg: github.com/canghel3/raster2image/raster
 cpu: 12th Gen Intel(R) Core(TM) i7-1260P
-BenchmarkZoomInto
-BenchmarkZoomInto-16    	    6499	    181467 ns/op ~ 0.18ms/op
-*/
-func BenchmarkZoomInto(b *testing.B) {
-	bbox := [4]float64{1364859.5770601074, 5119446.406427965, 1367305.561965233, 5121892.391333092}
-
-	for i := 0; i < b.N; i++ {
-		var newDs = new(godal.Dataset)
-		err := publicGodalDataset.ZoomInto(&newDs, bbox, "EPSG:3857")
-		assert.NilError(b, err)
-		assert.Check(b, newDs != nil)
-	}
-}
-
-/*
-goos: linux
-goarch: amd64
-pkg: github.com/canghel3/raster2image/raster
-cpu: 12th Gen Intel(R) Core(TM) i7-1260P
 BenchmarkRender
 BenchmarkRender/ZOOM
 BenchmarkRender/ZOOM-16         	     423	   2551499 ns/op ~ 2.55ms/op
-BenchmarkRender/ZOOM_INTO
-BenchmarkRender/ZOOM_INTO-16    	       2	 735253360 ns/op ~ 735ms/op
 */
 func BenchmarkRender(b *testing.B) {
 	b.Run("ZOOM", func(b *testing.B) {
@@ -229,25 +207,6 @@ func BenchmarkRender(b *testing.B) {
 			assert.NilError(b, err)
 
 			render, err := zoomed.Render(256, 256)
-			assert.NilError(b, err)
-
-			var buf bytes.Buffer
-			err = png.Encode(&buf, render)
-			assert.NilError(b, err)
-
-			// Prevent compiler optimizations by using the buffer's length
-			_ = buf.Len()
-		}
-	})
-
-	b.Run("ZOOM INTO", func(b *testing.B) {
-		for i := 0; i < b.N; i++ {
-			var newDs = new(godal.Dataset)
-			bbox := [4]float64{1364859.5770601074, 5119446.406427965, 1367305.561965233, 5121892.391333092}
-			err := publicGodalDataset.ZoomInto(&newDs, bbox, "EPSG:3857")
-			assert.NilError(b, err)
-
-			render, err := publicGodalDataset.Render(256, 256)
 			assert.NilError(b, err)
 
 			var buf bytes.Buffer
