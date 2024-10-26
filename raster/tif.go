@@ -49,7 +49,9 @@ func (td *TifDriver) renderSingleBand(width, height uint) (image.Image, error) {
 			return nil, fmt.Errorf("not implemented")
 		}
 	} else {
-		//requires normalization
+		//check if style is set
+		//if style is set, check that the dataset values are within the style ranges
+		//if no style set, normalize the values in uint8 range
 		return nil, fmt.Errorf("cannot render raster %s with values larger than 255", td.gd.path)
 	}
 }
