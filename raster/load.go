@@ -4,7 +4,6 @@ import (
 	"errors"
 	"fmt"
 	"github.com/airbusgeo/godal"
-	"github.com/canghel3/raster2image/render"
 	"image"
 	"math"
 	"path/filepath"
@@ -26,8 +25,9 @@ type Data struct {
 }
 
 type GodalDataset struct {
-	data Data
-	path string
+	data   Data
+	driver Driver
+	path   string
 }
 
 func init() {
@@ -52,6 +52,9 @@ func Load(path string) (*GodalDataset, error) {
 		return nil, err
 	}
 
+	//this is the only place where GodalDataset fields are set
+	//it is FORBIDDEN to modify the fields elsewhere because then
+	//concurrency-safe is no longer guaranteed
 	gd := &GodalDataset{
 		data: Data{
 			ds:    ds,
@@ -61,6 +64,13 @@ func Load(path string) (*GodalDataset, error) {
 		},
 		path: path,
 	}
+
+	driver, err := gd.guessDriver()
+	if err != nil {
+		return nil, err
+	}
+
+	gd.driver = driver
 
 	R.mx.Lock()
 	R.registry[filepath.Base(path)] = gd
@@ -89,7 +99,7 @@ func Release(path string) {
 	R.mx.Unlock()
 }
 
-func (gd *GodalDataset) Render(width, height int) (image.Image, error) {
+func (gd *GodalDataset) Render(width, height uint) (image.Image, error) {
 	warped, err := gd.data.ds.Warp("", []string{
 		"-of", "MEM",
 		"-ts", fmt.Sprintf("%d", width), fmt.Sprintf("%d", height),
@@ -98,19 +108,17 @@ func (gd *GodalDataset) Render(width, height int) (image.Image, error) {
 		return nil, err
 	}
 	defer warped.Close()
+	//TODO; fix this flawed logic not using warped
 
-	switch len(warped.Bands()) {
-	case 1:
-		return gd.renderSingleBand(warped, width, height)
-	case 2:
-		return nil, fmt.Errorf("cannot render raster %s with 2 bands", gd.path)
-	case 3:
-		//rgb
-	case 4:
-		return nil, fmt.Errorf("cannot render raster %s with 4 bands", gd.path)
+	cpy := &GodalDataset{
+		driver: gd.driver,
+		path:   gd.path,
+		data:   gd.data,
 	}
 
-	return nil, nil
+	cpy.data.ds = warped
+
+	return cpy.driver.Render(width, height)
 }
 
 func (gd *GodalDataset) Copy() (*GodalDataset, error) {
@@ -130,27 +138,13 @@ func (gd *GodalDataset) Copy() (*GodalDataset, error) {
 	return cpy, nil
 }
 
-func (gd *GodalDataset) renderSingleBand(warped *godal.Dataset, width, height int) (image.Image, error) {
-	if gd.data.min == 0 && gd.data.max == 255 {
-		//grayscale (or apply style)
-		if len(gd.data.style) == 0 {
-			band := warped.Bands()[0]
-			var data = make([]float64, width*height)
-			err := band.Read(0, 0, data, width, height)
-			if err != nil {
-				return nil, err
-			}
-
-			grayscale := render.Grayscale(data, width, height, gd.data.min, gd.data.max)
-			return grayscale.Render()
-		} else {
-			//style given, so use rgb renderer with the style schema
-			return nil, fmt.Errorf("not implemented")
-		}
-	} else {
-		//requires normalization
-		return nil, fmt.Errorf("cannot render raster %s with values larger than 255", gd.path)
+func (gd *GodalDataset) guessDriver() (Driver, error) {
+	switch filepath.Ext(gd.path) {
+	case "tif":
+		return NewTifDriver(gd), nil
 	}
+
+	return nil, nil
 }
 
 // Zoom essentially warps the dataset to the specified bbox extent.

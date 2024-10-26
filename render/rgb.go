@@ -22,7 +22,7 @@ func RGB(data [][][]float64, width, height int, min, max float64) RGBRenderer {
 	}
 }
 
-func (rr *RGBRenderer) Render() (image.Image, error) {
+func (rr *RGBRenderer) Draw() (image.Image, error) {
 	img := image.NewRGBA(image.Rect(0, 0, rr.width, rr.height))
 
 	rangeVal := rr.max - rr.min

@@ -25,7 +25,7 @@ func Grayscale(data []float64, width, height int, min, max float64) GrayscaleRen
 	}
 }
 
-func (gr *GrayscaleRenderer) Render() (image.Image, error) {
+func (gr *GrayscaleRenderer) Draw() (image.Image, error) {
 	img := image.NewGray(image.Rect(0, 0, gr.width, gr.height))
 
 	// Normalize and apply the color map
