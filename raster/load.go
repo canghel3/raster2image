@@ -1,6 +1,7 @@
 package raster
 
 import (
+	"errors"
 	"fmt"
 	"github.com/airbusgeo/godal"
 	"github.com/canghel3/raster2image/render"
@@ -14,7 +15,7 @@ var R *Registry
 
 type Registry struct {
 	mx       sync.Mutex
-	registry map[string]Data
+	registry map[string]*GodalDataset
 }
 
 type Data struct {
@@ -31,67 +32,67 @@ type GodalDataset struct {
 
 func init() {
 	R = &Registry{
-		registry: make(map[string]Data),
+		registry: make(map[string]*GodalDataset),
 		mx:       sync.Mutex{},
 	}
 	godal.RegisterAll()
 }
 
-// Open reads the given raster file and stores it into the registry.
-func Open(path string) error {
+// Load opens the given raster file and stores it into the registry.
+// Use Load only when opening the file for the first time, because loading is slow.
+// For faster access, use Read afterward.
+func Load(path string) (*GodalDataset, error) {
 	ds, err := godal.Open(path)
 	if err != nil {
-		return err
+		return nil, err
 	}
 
 	min, max, err := minMaxDs(ds)
 	if err != nil {
-		return err
+		return nil, err
 	}
 
-	R.mx.Lock()
-	R.registry[filepath.Base(path)] = Data{
+	data := Data{
 		ds:    ds,
 		min:   min,
 		max:   max,
 		style: "",
 	}
-	R.mx.Unlock()
 
-	return nil
-}
-
-func Load(path string) *GodalDataset {
-	data, exists := R.registry[filepath.Base(path)]
-	if exists {
-		gd := &GodalDataset{
-			data: data,
-			path: path,
-		}
-
-		return gd
+	gd := &GodalDataset{
+		data: data,
+		path: path,
 	}
 
-	return nil
+	R.mx.Lock()
+	R.registry[filepath.Base(path)] = gd
+	R.mx.Unlock()
+
+	return gd.Copy()
+}
+
+// Read will retrieve the dataset quickly from the in-memory registry.
+func Read(name string) (*GodalDataset, error) {
+	gd, exists := R.registry[filepath.Base(name)]
+	if exists {
+		return gd, nil
+	}
+
+	return nil, errors.New("no such dataset exists. consider loading it first")
 }
 
 func Release(path string) {
 	R.mx.Lock()
 	registry, exists := R.registry[filepath.Base(path)]
 	if exists {
-		registry.ds.Close()
+		registry.Release()
 	}
 	delete(R.registry, filepath.Base(path))
 	R.mx.Unlock()
 }
 
 func (gd *GodalDataset) Render(width, height int) (image.Image, error) {
-	copied, err := gd.Copy()
-	if err != nil {
-		return nil, err
-	}
-
-	warped, err := copied.data.ds.Warp("", []string{
+	warped, err := gd.data.ds.Warp("", []string{
 		"-of", "MEM",
 		"-ts", fmt.Sprintf("%d", width), fmt.Sprintf("%d", height),
 	})
@@ -102,13 +103,13 @@ func (gd *GodalDataset) Render(width, height int) (image.Image, error) {
 
 	switch len(warped.Bands()) {
 	case 1:
-		return copied.renderSingleBand(warped, width, height)
+		return gd.renderSingleBand(warped, width, height)
 	case 2:
-		return nil, fmt.Errorf("cannot render raster %s with 2 bands", copied.path)
+		return nil, fmt.Errorf("cannot render raster %s with 2 bands", gd.path)
 	case 3:
 		//rgb
 	case 4:
-		return nil, fmt.Errorf("cannot render raster %s with 4 bands", copied.path)
+		return nil, fmt.Errorf("cannot render raster %s with 4 bands", gd.path)
 	}
 
 	return nil, nil
@@ -154,12 +155,7 @@ func (gd *GodalDataset) renderSingleBand(warped *godal.Dataset, width, height in
 	}
 }
 
-func (gd *GodalDataset) Zoom(bbox [4]float64, srs string) (*GodalDataset, error) {
-	copied, err := gd.Copy()
-	if err != nil {
-		return nil, err
-	}
-
+func (gd *GodalDataset) ZoomInto(ds **godal.Dataset, bbox [4]float64, srs string) error {
 	options := []string{
 		"-of", "MEM",
 		"-te", fmt.Sprintf("%f", bbox[0]), fmt.Sprintf("%f", bbox[1]), fmt.Sprintf("%f", bbox[2]), fmt.Sprintf("%f", bbox[3]), // Set bounding box
@@ -167,17 +163,34 @@ func (gd *GodalDataset) Zoom(bbox [4]float64, srs string) (*GodalDataset, error)
 		"-te_srs", "EPSG:3857",
 	}
 
-	warp, err := copied.data.ds.Warp("", options)
+	var err error
+	*ds, err = gd.data.ds.Warp("", options)
+	if err != nil {
+		return err
+	}
+
+	return nil
+}
+
+func (gd *GodalDataset) Zoom(bbox [4]float64, srs string) (*GodalDataset, error) {
+	options := []string{
+		"-of", "MEM",
+		"-te", fmt.Sprintf("%f", bbox[0]), fmt.Sprintf("%f", bbox[1]), fmt.Sprintf("%f", bbox[2]), fmt.Sprintf("%f", bbox[3]), // Set bounding box
+		"-t_srs", srs, // target spatial reference system
+		"-te_srs", "EPSG:3857",
+	}
+
+	warped, err := gd.data.ds.Warp("", options)
 	if err != nil {
 		return nil, err
 	}
 
 	newGd := &GodalDataset{
-		data: copied.data,
-		path: copied.path,
+		data: gd.data,
+		path: gd.path,
 	}
 
-	newGd.data.ds = warp
+	newGd.data.ds = warped
 
 	return newGd, nil
 }
