@@ -25,9 +25,8 @@ type Data struct {
 }
 
 type GodalDataset struct {
-	data   Data
-	driver Driver
-	path   string
+	data Data
+	path string
 }
 
 func init() {
@@ -55,7 +54,7 @@ func Load(path string) (*GodalDataset, error) {
 	//this is the only place where GodalDataset fields are set
 	//it is FORBIDDEN to modify the fields elsewhere because then
 	//concurrency-safe is no longer guaranteed
-	gd := &GodalDataset{
+	gd := GodalDataset{
 		data: Data{
 			ds:    ds,
 			min:   min,
@@ -65,18 +64,11 @@ func Load(path string) (*GodalDataset, error) {
 		path: path,
 	}
 
-	driver, err := gd.guessDriver()
-	if err != nil {
-		return nil, err
-	}
-
-	gd.driver = driver
-
 	R.mx.Lock()
-	R.registry[filepath.Base(path)] = gd
+	R.registry[filepath.Base(path)] = &gd
 	R.mx.Unlock()
 
-	return gd, nil
+	return &gd, nil
 }
 
 // Read will retrieve the dataset quickly from the in-memory registry.
@@ -110,15 +102,14 @@ func (gd *GodalDataset) Render(width, height uint) (image.Image, error) {
 	defer warped.Close()
 	//TODO; fix this flawed logic not using warped
 
-	cpy := &GodalDataset{
-		driver: gd.driver,
-		path:   gd.path,
-		data:   gd.data,
+	cpy := gd.shallowCopy()
+	cpy.data.ds = warped
+	driver, err := cpy.newDriver()
+	if err != nil {
+		return nil, err
 	}
 
-	cpy.data.ds = warped
-
-	return cpy.driver.Render(width, height)
+	return driver.Render(width, height)
 }
 
 func (gd *GodalDataset) Copy() (*GodalDataset, error) {
@@ -129,22 +120,19 @@ func (gd *GodalDataset) Copy() (*GodalDataset, error) {
 		return nil, err
 	}
 
-	cpy := &GodalDataset{
-		data: gd.data,
-		path: gd.path,
-	}
-
+	cpy := gd.shallowCopy()
 	cpy.data.ds = c
 	return cpy, nil
 }
 
-func (gd *GodalDataset) guessDriver() (Driver, error) {
-	switch filepath.Ext(gd.path) {
-	case "tif":
+func (gd *GodalDataset) newDriver() (Driver, error) {
+	ext := filepath.Ext(filepath.Base(gd.path))
+	switch ext {
+	case ".tif", "tif":
 		return NewTifDriver(gd), nil
 	}
 
-	return nil, nil
+	return nil, fmt.Errorf("no driver found for %s", ext)
 }
 
 // Zoom essentially warps the dataset to the specified bbox extent.
@@ -162,14 +150,19 @@ func (gd *GodalDataset) Zoom(bbox [4]float64, srs string) (*GodalDataset, error)
 		return nil, err
 	}
 
+	newGd := gd.shallowCopy()
+	newGd.data.ds = warped
+
+	return newGd, nil
+}
+
+func (gd *GodalDataset) shallowCopy() *GodalDataset {
 	newGd := &GodalDataset{
 		data: gd.data,
 		path: gd.path,
 	}
 
-	newGd.data.ds = warped
-
-	return newGd, nil
+	return newGd
 }
 
 func (gd *GodalDataset) Release() error {
