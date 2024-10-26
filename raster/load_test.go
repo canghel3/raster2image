@@ -12,6 +12,8 @@ import (
 const (
 	NasaInput = "./testdata/nasa_lights_compr.tif"
 	NasaPng   = "./testdata/generated/nasa_lights_compr.png"
+
+	SampleCss = "./testdata/styles/sample.css"
 )
 
 var (
@@ -29,9 +31,26 @@ func TestMain(m *testing.M) {
 }
 
 func TestLoad(t *testing.T) {
-	ds, err := Load(NasaInput)
-	assert.NilError(t, err)
-	assert.Check(t, ds != nil)
+	t.Run("W/O STYLE", func(t *testing.T) {
+		ds, err := Load(NasaInput)
+		assert.NilError(t, err)
+		assert.Check(t, ds != nil)
+		assert.Check(t, ds.path == NasaInput)
+		assert.Check(t, ds.data.min == 0)
+		assert.Check(t, ds.data.max == 255)
+		assert.Check(t, ds.data.style == "")
+	})
+
+	t.Run("W/ STYLE", func(t *testing.T) {
+		ds, err := Load(NasaInput, WithStyle(SampleCss))
+		assert.NilError(t, err)
+		assert.Check(t, ds != nil)
+		assert.Check(t, ds.path == NasaInput)
+		assert.Check(t, ds.data.min == 0)
+		assert.Check(t, ds.data.max == 255)
+		assert.Check(t, ds.data.style == SampleCss)
+	})
+
 }
 
 func TestRead(t *testing.T) {
@@ -200,7 +219,7 @@ BenchmarkRender/ZOOM
 BenchmarkRender/ZOOM-16         	     423	   2551499 ns/op ~ 2.55ms/op
 */
 func BenchmarkRender(b *testing.B) {
-	b.Run("ZOOM", func(b *testing.B) {
+	b.Run("W/ ZOOM", func(b *testing.B) {
 		for i := 0; i < b.N; i++ {
 			bbox := [4]float64{1364859.5770601074, 5119446.406427965, 1367305.561965233, 5121892.391333092}
 			zoomed, err := publicGodalDataset.Zoom(bbox, "EPSG:3857")

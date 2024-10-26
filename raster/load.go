@@ -40,7 +40,7 @@ func init() {
 // Load opens the given raster file and stores it into the registry.
 // Use Load only when opening the file for the first time, because loading is slow.
 // For faster access, use Read afterward.
-func Load(path string) (*GodalDataset, error) {
+func Load(path string, options ...LoadOption) (*GodalDataset, error) {
 	ds, err := godal.Open(path)
 	if err != nil {
 		return nil, err
@@ -62,6 +62,10 @@ func Load(path string) (*GodalDataset, error) {
 			style: "",
 		},
 		path: path,
+	}
+
+	for _, option := range options {
+		option(&gd)
 	}
 
 	R.mx.Lock()
@@ -100,7 +104,6 @@ func (gd *GodalDataset) Render(width, height uint) (image.Image, error) {
 		return nil, err
 	}
 	defer warped.Close()
-	//TODO; fix this flawed logic not using warped
 
 	cpy := gd.shallowCopy()
 	cpy.data.ds = warped
