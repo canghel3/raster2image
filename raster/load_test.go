@@ -127,7 +127,7 @@ goarch: amd64
 pkg: github.com/canghel3/raster2image/raster
 cpu: 12th Gen Intel(R) Core(TM) i7-1260P
 BenchmarkLoad
-BenchmarkLoad-16    	       1	1622663965 ns/op ~ 1622ms/op
+BenchmarkLoad-16    	       1	1193744867 ns/op ~ 1193ms/op
 */
 func BenchmarkLoad(b *testing.B) {
 	for i := 0; i < b.N; i++ {

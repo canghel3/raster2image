@@ -52,15 +52,13 @@ func Load(path string) (*GodalDataset, error) {
 		return nil, err
 	}
 
-	data := Data{
-		ds:    ds,
-		min:   min,
-		max:   max,
-		style: "",
-	}
-
 	gd := &GodalDataset{
-		data: data,
+		data: Data{
+			ds:    ds,
+			min:   min,
+			max:   max,
+			style: "",
+		},
 		path: path,
 	}
 
@@ -68,7 +66,7 @@ func Load(path string) (*GodalDataset, error) {
 	R.registry[filepath.Base(path)] = gd
 	R.mx.Unlock()
 
-	return gd.Copy()
+	return gd, nil
 }
 
 // Read will retrieve the dataset quickly from the in-memory registry.
