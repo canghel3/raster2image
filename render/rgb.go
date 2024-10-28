@@ -6,13 +6,13 @@ type RGBRenderer struct {
 	width  int
 	height int
 
-	data [][][]float64
+	data [][]float64
 
 	min float64
 	max float64
 }
 
-func RGB(data [][][]float64, width, height int, min, max float64) RGBRenderer {
+func RGB(width, height int, min, max float64, data ...[]float64) RGBRenderer {
 	return RGBRenderer{
 		width:  width,
 		height: height,

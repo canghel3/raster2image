@@ -2,23 +2,10 @@ package parser
 
 import (
 	"fmt"
+	"github.com/canghel3/raster2image/models"
 	"os"
 	"strings"
 )
-
-// ColorMapEntry represents each color map entry in the raster-color-map
-type ColorMapEntry struct {
-	Color    string  // Hex color code
-	Quantity int     // Quantity associated with the color
-	Opacity  float64 // Opacity value
-	Label    string  // Description label
-}
-
-// RasterStyle represents the entire raster style configuration
-type RasterStyle struct {
-	RasterChannels string          // Channel setting
-	ColorMap       []ColorMapEntry // List of color map entries
-}
 
 type CSSParser struct {
 	path string
@@ -30,13 +17,13 @@ func NewCSSParser(path string) *CSSParser {
 	}
 }
 
-func (cp *CSSParser) Parse() (*RasterStyle, error) {
+func (cp *CSSParser) Parse() (*models.RasterStyle, error) {
 	content, err := os.ReadFile(cp.path)
 	if err != nil {
 		return nil, err
 	}
 
-	style := &RasterStyle{}
+	style := &models.RasterStyle{}
 	lines := strings.Split(string(content), "\n")
 
 	for _, line := range lines {
@@ -70,7 +57,7 @@ func (cp *CSSParser) Parse() (*RasterStyle, error) {
 			label := strings.Trim(strings.TrimSpace(parts[3]), `"`)
 
 			// Append new color map entry
-			style.ColorMap = append(style.ColorMap, ColorMapEntry{
+			style.ColorMap = append(style.ColorMap, models.ColorMapEntry{
 				Color:    color,
 				Quantity: quantity,
 				Opacity:  opacity,

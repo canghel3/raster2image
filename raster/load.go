@@ -2,10 +2,7 @@ package raster
 
 import (
 	"errors"
-	"fmt"
 	"github.com/airbusgeo/godal"
-	"image"
-	"math"
 	"path/filepath"
 	"sync"
 )
@@ -13,26 +10,14 @@ import (
 var R *Registry
 
 type Registry struct {
-	mx       sync.Mutex
+	mx       sync.RWMutex
 	registry map[string]*GodalDataset
-}
-
-type Data struct {
-	style string
-	min   float64
-	max   float64
-	ds    *godal.Dataset
-}
-
-type GodalDataset struct {
-	data Data
-	path string
 }
 
 func init() {
 	R = &Registry{
 		registry: make(map[string]*GodalDataset),
-		mx:       sync.Mutex{},
+		mx:       sync.RWMutex{},
 	}
 	godal.RegisterAll()
 }
@@ -56,10 +41,9 @@ func Load(path string, options ...LoadOption) (*GodalDataset, error) {
 	//concurrency-safe is no longer guaranteed
 	gd := GodalDataset{
 		data: Data{
-			ds:    ds,
-			min:   min,
-			max:   max,
-			style: "",
+			ds:  ds,
+			min: min,
+			max: max,
 		},
 		path: path,
 	}
@@ -77,7 +61,9 @@ func Load(path string, options ...LoadOption) (*GodalDataset, error) {
 
 // Read will retrieve the dataset quickly from the in-memory registry.
 func Read(name string) (*GodalDataset, error) {
+	R.mx.RLock()
 	gd, exists := R.registry[filepath.Base(name)]
+	R.mx.RUnlock()
 	if exists {
 		return gd, nil
 	}
@@ -93,112 +79,4 @@ func Release(path string) {
 	}
 	delete(R.registry, filepath.Base(path))
 	R.mx.Unlock()
-}
-
-func (gd *GodalDataset) Render(width, height uint) (image.Image, error) {
-	warped, err := gd.data.ds.Warp("", []string{
-		"-of", "MEM",
-		"-ts", fmt.Sprintf("%d", width), fmt.Sprintf("%d", height),
-	})
-	if err != nil {
-		return nil, err
-	}
-	defer warped.Close()
-
-	cpy := gd.shallowCopy()
-	cpy.data.ds = warped
-	driver, err := cpy.newDriver()
-	if err != nil {
-		return nil, err
-	}
-
-	return driver.Render(width, height)
-}
-
-func (gd *GodalDataset) Copy() (*GodalDataset, error) {
-	c, err := gd.data.ds.Translate("", []string{
-		"-of", "MEM",
-	})
-	if err != nil {
-		return nil, err
-	}
-
-	cpy := gd.shallowCopy()
-	cpy.data.ds = c
-	return cpy, nil
-}
-
-func (gd *GodalDataset) newDriver() (Driver, error) {
-	ext := filepath.Ext(filepath.Base(gd.path))
-	switch ext {
-	case ".tif", "tif":
-		return NewTifDriver(gd), nil
-	}
-
-	return nil, fmt.Errorf("no driver found for %s", ext)
-}
-
-// Zoom essentially warps the dataset to the specified bbox extent.
-// The underlying dataset is not modified.
-func (gd *GodalDataset) Zoom(bbox [4]float64, srs string) (*GodalDataset, error) {
-	options := []string{
-		"-of", "MEM",
-		"-te", fmt.Sprintf("%f", bbox[0]), fmt.Sprintf("%f", bbox[1]), fmt.Sprintf("%f", bbox[2]), fmt.Sprintf("%f", bbox[3]), // Set bounding box
-		"-t_srs", srs, // target spatial reference system
-		"-te_srs", "EPSG:3857",
-	}
-
-	warped, err := gd.data.ds.Warp("", options)
-	if err != nil {
-		return nil, err
-	}
-
-	newGd := gd.shallowCopy()
-	newGd.data.ds = warped
-
-	return newGd, nil
-}
-
-func (gd *GodalDataset) shallowCopy() *GodalDataset {
-	newGd := &GodalDataset{
-		data: gd.data,
-		path: gd.path,
-	}
-
-	return newGd
-}
-
-func (gd *GodalDataset) Release() error {
-	return gd.data.ds.Close()
-}
-
-func minMaxDs(ds *godal.Dataset) (min, max float64, err error) {
-	switch len(ds.Bands()) {
-	case 1:
-		band := ds.Bands()[0]
-		bandStructure := band.Structure()
-
-		var data = make([]float64, bandStructure.SizeX*bandStructure.SizeY)
-		err := band.Read(0, 0, data, bandStructure.SizeX, bandStructure.SizeY)
-		if err != nil {
-			return min, max, err
-		}
-
-		min, max = minMax(data)
-	}
-
-	return min, max, nil
-}
-
-func minMax(data []float64) (min, max float64) {
-	min, max = math.MaxFloat64, -math.MaxFloat64
-	for _, v := range data {
-		if v < min {
-			min = v
-		}
-		if v > max {
-			max = v
-		}
-	}
-	return
 }

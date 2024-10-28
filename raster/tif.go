@@ -16,6 +16,7 @@ func NewTifDriver(gd *GodalDataset) *TifDriver {
 	}
 }
 
+// TODO: check if gdal_translate to PNG and styling is possible
 func (td *TifDriver) Render(width, height uint) (image.Image, error) {
 	switch len(td.gd.data.ds.Bands()) {
 	case 1:
@@ -34,7 +35,7 @@ func (td *TifDriver) Render(width, height uint) (image.Image, error) {
 func (td *TifDriver) renderSingleBand(width, height uint) (image.Image, error) {
 	if td.gd.data.min == 0 && td.gd.data.max == 255 {
 		//grayscale (or apply style)
-		if len(td.gd.data.style) == 0 {
+		if td.gd.data.style == nil {
 			band := td.gd.data.ds.Bands()[0]
 			var data = make([]float64, width*height)
 			err := band.Read(0, 0, data, int(width), int(height))
