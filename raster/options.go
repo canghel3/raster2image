@@ -16,7 +16,6 @@ func WithStyle(style string) LoadOption {
 				g.data.style = s
 			}
 		}
-
 		return
 	}
 }

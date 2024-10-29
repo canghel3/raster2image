@@ -1,0 +1,15 @@
+*{
+    raster-channels:auto;
+    raster-color-map:
+            color-map-entry(#000000, 0, 1, "None (0)")
+            color-map-entry(#093a7f, 10, 1, "Very Low (<10)")
+            color-map-entry(#002b65, 20, 1, "Low (10-20)")
+            color-map-entry(#053e88, 30, 1, "Moderate (20-30)")
+            color-map-entry(#114ea3, 40, 1, "Significant (30-40)")
+            color-map-entry(#275ab6, 50, 1, "Significant (40-50)")
+            color-map-entry(#7283ad, 75, 1, "High (50-75)")
+            color-map-entry(#868c9e, 100, 1, "High (75-100)")
+            color-map-entry(#b1a96a, 150, 1, "Very High (100-150)")
+            color-map-entry(#ffea49, 200, 1, "Very High (150-200)")
+            color-map-entry(#ffea49, 230, 1, "Extreme (>200)")
+}

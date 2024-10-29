@@ -1,24 +1,43 @@
 package render
 
-import "image"
+import (
+	"image"
+	"image/color"
+)
 
 type RGBRenderer struct {
 	width  int
 	height int
 
-	data [][]float64
+	data []float64
 
 	min float64
 	max float64
+
+	colorMap func(float64) color.RGBA
 }
 
-func RGB(width, height int, min, max float64, data ...[]float64) RGBRenderer {
-	return RGBRenderer{
+func RGB(data []float64, width, height int, min, max float64, options ...RGBRendererOption) RGBRenderer {
+	r := RGBRenderer{
 		width:  width,
 		height: height,
 		data:   data,
 		min:    min,
 		max:    max,
+	}
+
+	for _, option := range options {
+		option(&r)
+	}
+
+	return r
+}
+
+type RGBRendererOption func(*RGBRenderer)
+
+func ColorMapOption(colorMap func(float64) color.RGBA) RGBRendererOption {
+	return func(r *RGBRenderer) {
+		r.colorMap = colorMap
 	}
 }
 
@@ -33,12 +52,8 @@ func (rr *RGBRenderer) Draw() (image.Image, error) {
 	// Normalize and apply the color map
 	for y := 0; y < rr.height; y++ {
 		for x := 0; x < rr.width; x++ {
-			//value := rr.data[y*rr.width+x]
-			// Normalize the value between 0 and 255
-			//normalized := uint8((value - r.min) / (r.max - r.min) * 255)
-			//normalized := uint8((value - r.min) / rangeVal * 255)
-			//col := applyColorMap(uint8(value))
-			//img.Set(x, y, col)
+			value := rr.data[y*rr.width+x]
+			img.Set(x, y, rr.colorMap(value))
 		}
 	}
 	return img, nil
