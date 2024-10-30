@@ -17,7 +17,7 @@ type RGBRenderer struct {
 	colorMap func(float64) color.RGBA
 }
 
-func RGB(data []float64, width, height int, min, max float64, options ...RGBRendererOption) RGBRenderer {
+func RGB(data []float64, width, height int, min, max float64, options ...RGBRendererOption) Renderer {
 	r := RGBRenderer{
 		width:  width,
 		height: height,
@@ -30,7 +30,7 @@ func RGB(data []float64, width, height int, min, max float64, options ...RGBRend
 		option(&r)
 	}
 
-	return r
+	return &r
 }
 
 type RGBRendererOption func(*RGBRenderer)

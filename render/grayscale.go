@@ -15,8 +15,8 @@ type GrayscaleRenderer struct {
 	max float64
 }
 
-func Grayscale(data []float64, width, height int, min, max float64) GrayscaleRenderer {
-	return GrayscaleRenderer{
+func Grayscale(data []float64, width, height int, min, max float64) Renderer {
+	return &GrayscaleRenderer{
 		width:  width,
 		height: height,
 		data:   data,
