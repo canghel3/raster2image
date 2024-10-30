@@ -11,7 +11,7 @@ type CSSParser struct {
 	path string
 }
 
-func NewCSSParser(path string) *CSSParser {
+func NewCSSParser(path string) StyleParser {
 	return &CSSParser{
 		path: path,
 	}

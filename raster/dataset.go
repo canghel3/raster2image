@@ -65,6 +65,7 @@ func (gd *GodalDataset) newDriver() (Driver, error) {
 
 // Zoom essentially warps the dataset to the specified bbox extent.
 // The underlying dataset is not modified.
+// It's recommended to defer Release on the returned dataset to avoid any resource leaks.
 func (gd *GodalDataset) Zoom(bbox [4]float64, srs string) (*GodalDataset, error) {
 	options := []string{
 		"-of", "MEM",

@@ -11,7 +11,7 @@ type TifDriver struct {
 	gd *GodalDataset
 }
 
-func NewTifDriver(gd *GodalDataset) *TifDriver {
+func NewTifDriver(gd *GodalDataset) Driver {
 	return &TifDriver{
 		gd: gd,
 	}
