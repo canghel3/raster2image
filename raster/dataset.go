@@ -63,7 +63,7 @@ func (gd *GodalDataset) newDriver() (Driver, error) {
 	return nil, fmt.Errorf("no driver found for %s", ext)
 }
 
-// Zoom essentially warps the dataset to the specified bbox extent.
+// Zoom essentially warps the dataset to the specified bbox extent (minX,minY,maxX,maxY format).
 // The underlying dataset is not modified.
 // It's recommended to defer Release on the returned dataset to avoid any resource leaks.
 func (gd *GodalDataset) Zoom(bbox [4]float64, srs string) (*GodalDataset, error) {

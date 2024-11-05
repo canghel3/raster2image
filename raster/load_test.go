@@ -4,7 +4,6 @@ import (
 	"bytes"
 	"gotest.tools/v3/assert"
 	"image/png"
-	"log"
 	"os"
 	"testing"
 )
@@ -18,15 +17,15 @@ const (
 )
 
 var (
-	publicGodalDataset *GodalDataset
+// publicGodalDataset *GodalDataset
 )
 
 func TestMain(m *testing.M) {
-	ds, err := Load(NasaInput)
-	if err != nil {
-		log.Fatal(err)
-	}
-	publicGodalDataset = ds
+	//ds, err := Load(NasaInput)
+	//if err != nil {
+	//	log.Fatal(err)
+	//}
+	//publicGodalDataset = ds
 
 	os.Exit(m.Run())
 }
@@ -210,29 +209,31 @@ BenchmarkCopy
 BenchmarkCopy-16    	       3	 394223565 ns/op ~ 394ms/op
 */
 func BenchmarkCopy(b *testing.B) {
+	ds, err := Load(NasaInput)
+	assert.NilError(b, err)
+	assert.Check(b, ds != nil)
+
 	for i := 0; i < b.N; i++ {
-		ds, err := publicGodalDataset.Copy()
+		ds, err := ds.Copy()
 		assert.NilError(b, err)
 		assert.Check(b, ds != nil)
 		assert.Check(b, ds.data.ds != nil)
+		assert.NilError(b, ds.Release())
 	}
 }
 
-/*
-goos: linux
-goarch: amd64
-pkg: github.com/canghel3/raster2image/raster
-cpu: 12th Gen Intel(R) Core(TM) i7-1260P
-BenchmarkZoom
-BenchmarkZoom-16    	    5922	    174486 ns/op ~ 0.17ms/op
-*/
 func BenchmarkZoom(b *testing.B) {
-	bbox := [4]float64{1364859.5770601074, 5119446.406427965, 1367305.561965233, 5121892.391333092}
+	ds, err := Load(NasaInput)
+	assert.NilError(b, err)
+	assert.Check(b, ds != nil)
+
 	for i := 0; i < b.N; i++ {
-		ds, err := publicGodalDataset.Zoom(bbox, "EPSG:3857")
+		bbox := generateRandomBBoxWithinExtent()
+		ds, err = ds.Zoom(bbox, "EPSG:3857")
 		assert.NilError(b, err)
 		assert.Check(b, ds != nil)
 		assert.Check(b, ds.data.ds != nil)
+		assert.NilError(b, ds.Release())
 	}
 }
 
@@ -246,10 +247,36 @@ BenchmarkRender/ZOOM
 BenchmarkRender/ZOOM-16         	     423	   2551499 ns/op ~ 2.55ms/op
 */
 func BenchmarkRender(b *testing.B) {
-	b.Run("W/ ZOOM", func(b *testing.B) {
+	ds, err := Load(NasaInput)
+	assert.NilError(b, err)
+	assert.Check(b, ds != nil)
+
+	b.Run("W/O STYLE", func(b *testing.B) {
 		for i := 0; i < b.N; i++ {
-			bbox := [4]float64{1364859.5770601074, 5119446.406427965, 1367305.561965233, 5121892.391333092}
-			zoomed, err := publicGodalDataset.Zoom(bbox, "EPSG:3857")
+			bbox := generateRandomBBoxWithinExtent()
+			zoomed, err := ds.Zoom(bbox, "EPSG:3857")
+			assert.NilError(b, err)
+
+			render, err := zoomed.Render(256, 256)
+			assert.NilError(b, err)
+
+			var buf bytes.Buffer
+			err = png.Encode(&buf, render)
+			assert.NilError(b, err)
+
+			// Prevent compiler optimizations by using the buffer's length
+			_ = buf.Len()
+		}
+	})
+
+	b.Run("W/ STYLE", func(b *testing.B) {
+		ds, err := Load(NasaInput, WithStyle(SampleCss))
+		assert.NilError(b, err)
+		assert.Check(b, ds != nil)
+
+		for i := 0; i < b.N; i++ {
+			bbox := generateRandomBBoxWithinExtent()
+			zoomed, err := ds.Zoom(bbox, "EPSG:3857")
 			assert.NilError(b, err)
 
 			render, err := zoomed.Render(256, 256)

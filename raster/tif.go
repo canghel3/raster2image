@@ -34,28 +34,26 @@ func (td *TifDriver) Render(width, height uint) (image.Image, error) {
 }
 
 func (td *TifDriver) renderSingleBand(width, height uint) (image.Image, error) {
+	band := td.gd.data.ds.Bands()[0]
+	var data = make([]float64, width*height)
+	err := band.Read(0, 0, data, int(width), int(height))
+	if err != nil {
+		return nil, err
+	}
+
+	if td.gd.data.style != nil {
+		//style given, so use rgb renderer with the style schema
+		colorMap := td.generateColorMap()
+		rgb := render.RGB(data, int(width), int(height), td.gd.data.min, td.gd.data.max, render.ColorMapOption(colorMap))
+		return rgb.Draw()
+	}
+
 	if td.gd.data.min == 0 && td.gd.data.max == 255 {
 		//grayscale (or apply style)
-		band := td.gd.data.ds.Bands()[0]
-		var data = make([]float64, width*height)
-		err := band.Read(0, 0, data, int(width), int(height))
-		if err != nil {
-			return nil, err
-		}
-
-		if td.gd.data.style == nil {
-			grayscale := render.Grayscale(data, int(width), int(height), td.gd.data.min, td.gd.data.max)
-			return grayscale.Draw()
-		} else {
-			//style given, so use rgb renderer with the style schema
-			colorMap := td.generateColorMap()
-			rgb := render.RGB(data, int(width), int(height), td.gd.data.min, td.gd.data.max, render.ColorMapOption(colorMap))
-			return rgb.Draw()
-		}
+		grayscale := render.Grayscale(data, int(width), int(height), td.gd.data.min, td.gd.data.max)
+		return grayscale.Draw()
 	} else {
-		//check if style is set
-		//if style is set, check that the dataset values are within the style ranges
-		//if no style set, normalize the values in uint8 range
+
 		return nil, fmt.Errorf("cannot render raster %s with values larger than 255", td.gd.path)
 	}
 }

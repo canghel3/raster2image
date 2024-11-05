@@ -31,8 +31,17 @@ func (gr *GrayscaleRenderer) Draw() (image.Image, error) {
 	// Normalize and apply the color map
 	for y := 0; y < gr.height; y++ {
 		for x := 0; x < gr.width; x++ {
-			img.SetGray(x, y, color.Gray{Y: uint8(gr.data[y*gr.width+x])})
+			img.SetGray(x, y, color.Gray{Y: normalizeByte(gr.data[y*gr.width+x], gr.min, gr.max)})
 		}
 	}
 	return img, nil
+}
+
+//
+
+func normalizeByte(value, min, max float64) uint8 {
+	if max == min {
+		return 0
+	}
+	return uint8(((value - min) / (max - min)) * 255)
 }
