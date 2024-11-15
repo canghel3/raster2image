@@ -6,9 +6,11 @@ import (
 	"github.com/canghel3/raster2image/models"
 	"image"
 	"path/filepath"
+	"sync"
 )
 
 type GodalDataset struct {
+	rw   sync.RWMutex
 	data Data
 	path string
 }
@@ -21,10 +23,12 @@ type Data struct {
 }
 
 func (gd *GodalDataset) Render(width, height uint) (image.Image, error) {
+	gd.rw.Lock()
 	warped, err := gd.data.ds.Warp("", []string{
 		"-of", "MEM",
 		"-ts", fmt.Sprintf("%d", width), fmt.Sprintf("%d", height),
 	})
+	gd.rw.Unlock()
 	if err != nil {
 		return nil, err
 	}
@@ -74,7 +78,10 @@ func (gd *GodalDataset) Zoom(bbox [4]float64, srs string) (*GodalDataset, error)
 		"-te_srs", "EPSG:3857",
 	}
 
+	//TODO: this may be causing a panic because of concurrent access to *ds
+	gd.rw.Lock()
 	warped, err := gd.data.ds.Warp("", options)
+	gd.rw.Unlock()
 	if err != nil {
 		return nil, err
 	}
