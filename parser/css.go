@@ -51,9 +51,17 @@ func (cp *CSSParser) Parse() (*models.RasterStyle, error) {
 			// Parse each part
 			color := strings.TrimSpace(parts[0])
 			quantity := 0
-			fmt.Sscanf(strings.TrimSpace(parts[1]), "%d", &quantity)
+			_, err = fmt.Sscanf(strings.TrimSpace(parts[1]), "%d", &quantity)
+			if err != nil {
+				return nil, err
+			}
+
 			opacity := 1.0
-			fmt.Sscanf(strings.TrimSpace(parts[2]), "%f", &opacity)
+			_, err = fmt.Sscanf(strings.TrimSpace(parts[2]), "%f", &opacity)
+			if err != nil {
+				return nil, err
+			}
+
 			label := strings.Trim(strings.TrimSpace(parts[3]), `"`)
 
 			// Append new color map entry

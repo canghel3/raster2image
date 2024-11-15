@@ -264,7 +264,7 @@ func BenchmarkRender(b *testing.B) {
 			err = png.Encode(&buf, render)
 			assert.NilError(b, err)
 
-			// Prevent compiler optimizations by using the buffer's length
+			// prevent compiler optimizations by using the buffer's length
 			_ = buf.Len()
 		}
 	})
