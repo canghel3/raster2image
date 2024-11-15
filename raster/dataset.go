@@ -78,7 +78,8 @@ func (gd *GodalDataset) Zoom(bbox [4]float64, srs string) (*GodalDataset, error)
 		"-te_srs", "EPSG:3857",
 	}
 
-	//TODO: this may be causing a panic because of concurrent access to *ds
+	//TODO: removing the locks from here can cause a panic because of concurrent access to the godal dataset,
+	// but the locks slow down the process by a lot. find a way around it!
 	gd.rw.Lock()
 	warped, err := gd.data.ds.Warp("", options)
 	gd.rw.Unlock()
