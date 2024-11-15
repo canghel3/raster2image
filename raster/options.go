@@ -11,7 +11,7 @@ func WithStyle(style string) LoadOption {
 	return func(g *GodalDataset) {
 		switch filepath.Ext(filepath.Base(style)) {
 		case ".css", "css":
-			s, err := parser.NewCSSParser(style).Parse()
+			s, err := parser.NewCSSParser(style).ParseRasterStyle()
 			if err == nil {
 				g.data.style = s
 			}
