@@ -11,6 +11,7 @@ import (
 )
 
 type GodalDataset struct {
+	//TODO: if lock contention is high, use a renderer worker pool or find a scalable alternative
 	rw   sync.RWMutex
 	data Data
 	path string
