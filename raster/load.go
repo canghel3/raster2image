@@ -36,9 +36,6 @@ func Load(path string, options ...LoadOption) (*GodalDataset, error) {
 		return nil, err
 	}
 
-	//this is the only place where GodalDataset fields are set
-	//it is FORBIDDEN to modify the fields elsewhere because then
-	//concurrency-safe is no longer guaranteed
 	gd := GodalDataset{
 		data: Data{
 			ds:  ds,

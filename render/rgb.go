@@ -1,6 +1,8 @@
 package render
 
 import (
+	"github.com/canghel3/raster2image/helpers"
+	"github.com/canghel3/raster2image/models"
 	"image"
 	"image/color"
 )
@@ -14,7 +16,7 @@ type RGBRenderer struct {
 	min float64
 	max float64
 
-	colorMap func(float64) color.RGBA
+	styling models.RasterStyle
 }
 
 func RGB(data []float64, width, height int, min, max float64, options ...RGBRendererOption) Renderer {
@@ -35,9 +37,9 @@ func RGB(data []float64, width, height int, min, max float64, options ...RGBRend
 
 type RGBRendererOption func(*RGBRenderer)
 
-func ColorMapOption(colorMap func(float64) color.RGBA) RGBRendererOption {
+func StyleOption(entry models.RasterStyle) RGBRendererOption {
 	return func(r *RGBRenderer) {
-		r.colorMap = colorMap
+		r.styling = entry
 	}
 }
 
@@ -53,8 +55,18 @@ func (rr *RGBRenderer) Draw() (image.Image, error) {
 	for y := 0; y < rr.height; y++ {
 		for x := 0; x < rr.width; x++ {
 			value := rr.data[y*rr.width+x]
-			img.Set(x, y, rr.colorMap(value))
+			img.Set(x, y, rr.getColor(value))
 		}
 	}
 	return img, nil
+}
+
+func (rr *RGBRenderer) getColor(value float64) color.RGBA {
+	for _, entry := range rr.styling.ColorMap {
+		if value >= entry.Quantity {
+			return helpers.HexToRGBA(entry.Color)
+		}
+	}
+	// Default to black if no range matches
+	return color.RGBA{0, 0, 0, 0}
 }

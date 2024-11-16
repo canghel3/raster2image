@@ -6,7 +6,6 @@ import (
 	"github.com/canghel3/raster2image/models"
 	"github.com/canghel3/raster2image/render"
 	"image"
-	"image/color"
 )
 
 type TifDriver struct {
@@ -53,8 +52,7 @@ func (td *TifDriver) renderSingleBand(width, height uint) (image.Image, error) {
 
 	if td.style != nil {
 		//style given, so use rgb renderer with the style schema
-		colorMap := td.generateColorMap()
-		rgb := render.RGB(data, int(width), int(height), td.min, td.max, render.ColorMapOption(colorMap))
+		rgb := render.RGB(data, int(width), int(height), td.min, td.max, render.StyleOption(*td.style))
 		return rgb.Draw()
 	}
 
@@ -65,30 +63,5 @@ func (td *TifDriver) renderSingleBand(width, height uint) (image.Image, error) {
 	} else {
 
 		return nil, fmt.Errorf("cannot render raster %s with values larger than 255", td.path)
-	}
-}
-
-func (td *TifDriver) generateColorMap() func(float64) color.RGBA {
-	return func(f float64) color.RGBA {
-		var previous = td.style.ColorMap[0]
-		for i, colorEntry := range td.style.ColorMap {
-			if i == 0 {
-				if f <= float64(colorEntry.Quantity) {
-					return hexToRGBA(colorEntry.Color)
-				}
-			} else if i == len(td.style.ColorMap)-1 {
-				if f >= float64(colorEntry.Quantity) {
-					return hexToRGBA(colorEntry.Color)
-				}
-			} else {
-				if f >= float64(previous.Quantity) && f <= float64(colorEntry.Quantity) {
-					return hexToRGBA(colorEntry.Color)
-				}
-			}
-
-			previous = td.style.ColorMap[i]
-		}
-
-		return color.RGBA{}
 	}
 }

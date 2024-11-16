@@ -51,8 +51,8 @@ func (cp *CSSParser) ParseRasterStyle() (*models.RasterStyle, error) {
 
 			// Parse each part
 			color := strings.TrimSpace(parts[0])
-			quantity := 0
-			_, err = fmt.Sscanf(strings.TrimSpace(parts[1]), "%d", &quantity)
+			quantity := float64(0)
+			_, err = fmt.Sscanf(strings.TrimSpace(parts[1]), "%f", &quantity)
 			if err != nil {
 				return nil, err
 			}
