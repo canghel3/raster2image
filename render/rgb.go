@@ -62,10 +62,17 @@ func (rr *RGBRenderer) Draw() (image.Image, error) {
 }
 
 func (rr *RGBRenderer) getColor(value float64) color.RGBA {
-	for _, entry := range rr.styling.ColorMap {
-		if value <= entry.Quantity {
+	var previous float64
+	for i, entry := range rr.styling.ColorMap {
+		if i == 0 {
+			previous = entry.Quantity
+		}
+
+		if previous < value && value <= entry.Quantity {
 			return helpers.HexToRGBA(entry.Color)
 		}
+
+		previous = entry.Quantity
 	}
 	// Default to black if no range matches
 	return color.RGBA{0, 0, 0, 0}
