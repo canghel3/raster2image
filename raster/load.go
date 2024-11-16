@@ -41,7 +41,7 @@ func Load(path string, options ...LoadOption) (*GodalDataset, error) {
 	//concurrency-safe is no longer guaranteed
 	gd := GodalDataset{
 		data: Data{
-			ds:  *ds,
+			ds:  ds,
 			min: min,
 			max: max,
 		},

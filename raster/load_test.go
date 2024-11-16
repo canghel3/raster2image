@@ -5,6 +5,7 @@ import (
 	"gotest.tools/v3/assert"
 	"image/png"
 	"os"
+	"sync"
 	"testing"
 )
 
@@ -52,7 +53,6 @@ func TestLoad(t *testing.T) {
 		assert.Check(t, ds.data.style.RasterChannels == "auto")
 		assert.Check(t, len(ds.data.style.ColorMap) > 0)
 	})
-
 }
 
 func TestRead(t *testing.T) {
@@ -97,11 +97,31 @@ func TestZoom(t *testing.T) {
 	assert.NilError(t, err)
 	assert.Check(t, ds != nil)
 
-	bbox := [4]float64{1364859.5770601074, 5119446.406427965, 1367305.561965233, 5121892.391333092}
-	zoomed, err := ds.Zoom(bbox, "EPSG:3857")
-	assert.NilError(t, err)
+	t.Run("SINGLE", func(t *testing.T) {
+		bbox := [4]float64{1364859.5770601074, 5119446.406427965, 1367305.561965233, 5121892.391333092}
+		zoomed, err := ds.Zoom(bbox, "EPSG:3857")
+		assert.NilError(t, err)
 
-	assert.Check(t, ds.data != zoomed.data)
+		assert.Check(t, ds.data != zoomed.data)
+	})
+
+	t.Run("CONCURRENT", func(t *testing.T) {
+		wg := sync.WaitGroup{}
+		const samples = 1e6
+		for i := 0; i < samples; i++ {
+			wg.Add(1)
+			go func() {
+				defer wg.Done()
+				bbox := [4]float64{1364859.5770601074, 5119446.406427965, 1367305.561965233, 5121892.391333092}
+				zoomed, err := ds.Zoom(bbox, "EPSG:3857")
+				assert.NilError(t, err)
+
+				assert.Check(t, ds.data != zoomed.data)
+			}()
+		}
+
+		wg.Wait()
+	})
 }
 
 func TestRender(t *testing.T) {

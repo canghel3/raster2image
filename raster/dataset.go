@@ -1,6 +1,7 @@
 package raster
 
 import (
+	"errors"
 	"fmt"
 	"github.com/airbusgeo/godal"
 	"github.com/canghel3/raster2image/models"
@@ -19,21 +20,25 @@ type Data struct {
 	min   float64
 	max   float64
 	style *models.RasterStyle
-	ds    godal.Dataset
+	ds    *godal.Dataset
 }
 
 func (gd *GodalDataset) Render(width, height uint) (image.Image, error) {
+	gd.rw.Lock()
+	if gd.data.ds == nil {
+		return nil, errors.New("godal dataset is nil")
+	}
 	warped, err := gd.data.ds.Warp("", []string{
 		"-of", "MEM",
 		"-ts", fmt.Sprintf("%d", width), fmt.Sprintf("%d", height),
 	})
+	gd.rw.Unlock()
 	if err != nil {
 		return nil, err
 	}
-	defer warped.Close()
 
 	cpy := gd.shallowCopy()
-	cpy.data.ds = *warped
+	cpy.data.ds = warped
 	driver, err := cpy.newRenderDriver()
 	if err != nil {
 		return nil, err
@@ -43,15 +48,20 @@ func (gd *GodalDataset) Render(width, height uint) (image.Image, error) {
 }
 
 func (gd *GodalDataset) Copy() (*GodalDataset, error) {
+	gd.rw.Lock()
+	if gd.data.ds == nil {
+		return nil, errors.New("godal dataset is nil")
+	}
 	c, err := gd.data.ds.Translate("", []string{
 		"-of", "MEM",
 	})
+	gd.rw.Unlock()
 	if err != nil {
 		return nil, err
 	}
 
 	cpy := gd.shallowCopy()
-	cpy.data.ds = *c
+	cpy.data.ds = c
 	return cpy, nil
 }
 
@@ -59,7 +69,7 @@ func (gd *GodalDataset) newRenderDriver() (RenderDriver, error) {
 	ext := filepath.Ext(filepath.Base(gd.path))
 	switch ext {
 	case ".tif", "tif":
-		return NewTifDriver(gd), nil
+		return NewTifDriver(gd.data.ds.Bands(), gd.path, gd.data.min, gd.data.max, gd.data.style), nil
 	}
 
 	return nil, fmt.Errorf("no driver found for %s", ext)
@@ -76,15 +86,18 @@ func (gd *GodalDataset) Zoom(bbox [4]float64, srs string) (*GodalDataset, error)
 		"-te_srs", "EPSG:3857",
 	}
 
-	//TODO: removing the locks from here can cause a panic because of concurrent access to the godal dataset,
-	// but the locks slow down the process by a lot. find a way around it!
+	gd.rw.Lock()
+	if gd.data.ds == nil {
+		return nil, errors.New("godal dataset is nil")
+	}
 	warped, err := gd.data.ds.Warp("", options)
+	gd.rw.Unlock()
 	if err != nil {
 		return nil, err
 	}
 
 	newGd := gd.shallowCopy()
-	newGd.data.ds = *warped
+	newGd.data.ds = warped
 
 	return newGd, nil
 }
@@ -99,5 +112,8 @@ func (gd *GodalDataset) shallowCopy() *GodalDataset {
 }
 
 func (gd *GodalDataset) Release() error {
+	gd.rw.Lock()
+	defer gd.rw.Unlock()
+
 	return gd.data.ds.Close()
 }
