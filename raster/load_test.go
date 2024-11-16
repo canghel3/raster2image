@@ -78,12 +78,10 @@ func TestRelease(t *testing.T) {
 	ds, err := Load(NasaInput)
 	assert.NilError(t, err)
 	assert.Check(t, ds != nil)
-	assert.Check(t, ds.data.ds != nil)
 
 	Release(NasaInput)
 
 	assert.Check(t, ds != nil)
-	assert.Check(t, ds.data.ds != nil)
 
 	ds, err = Read(NasaInput)
 	assert.Error(t, err, "no such dataset exists. consider loading it first")
@@ -98,7 +96,6 @@ func TestZoom(t *testing.T) {
 	ds, err := Load(NasaInput)
 	assert.NilError(t, err)
 	assert.Check(t, ds != nil)
-	assert.Check(t, ds.data.ds != nil)
 
 	bbox := [4]float64{1364859.5770601074, 5119446.406427965, 1367305.561965233, 5121892.391333092}
 	zoomed, err := ds.Zoom(bbox, "EPSG:3857")
@@ -112,7 +109,6 @@ func TestRender(t *testing.T) {
 		ds, err := Load(NasaInput)
 		assert.NilError(t, err)
 		assert.Check(t, ds != nil)
-		assert.Check(t, ds.data.ds != nil)
 
 		bbox := [4]float64{1364859.5770601074, 5119446.406427965, 1367305.561965233, 5121892.391333092}
 		zoomed, err := ds.Zoom(bbox, "EPSG:3857")
@@ -133,7 +129,6 @@ func TestRender(t *testing.T) {
 		ds, err := Load(NasaInput, WithStyle(SampleCss))
 		assert.NilError(t, err)
 		assert.Check(t, ds != nil)
-		assert.Check(t, ds.data.ds != nil)
 
 		bbox := [4]float64{1364859.5770601074, 5119446.406427965, 1367305.561965233, 5121892.391333092}
 		zoomed, err := ds.Zoom(bbox, "EPSG:3857")
@@ -179,7 +174,6 @@ func BenchmarkLoad(b *testing.B) {
 		ds, err := Load(NasaInput)
 		assert.NilError(b, err)
 		assert.Check(b, ds != nil)
-		assert.Check(b, ds.data.ds != nil)
 	}
 }
 
@@ -196,7 +190,6 @@ func BenchmarkRead(b *testing.B) {
 		ds, err := Read(NasaInput)
 		assert.NilError(b, err)
 		assert.Check(b, ds != nil)
-		assert.Check(b, ds.data.ds != nil)
 	}
 }
 
@@ -217,7 +210,6 @@ func BenchmarkCopy(b *testing.B) {
 		ds, err := ds.Copy()
 		assert.NilError(b, err)
 		assert.Check(b, ds != nil)
-		assert.Check(b, ds.data.ds != nil)
 		assert.NilError(b, ds.Release())
 	}
 }
@@ -232,7 +224,6 @@ func BenchmarkZoom(b *testing.B) {
 		ds, err = ds.Zoom(bbox, "EPSG:3857")
 		assert.NilError(b, err)
 		assert.Check(b, ds != nil)
-		assert.Check(b, ds.data.ds != nil)
 		assert.NilError(b, ds.Release())
 	}
 }

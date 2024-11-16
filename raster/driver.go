@@ -2,6 +2,6 @@ package raster
 
 import "image"
 
-type Driver interface {
+type RenderDriver interface {
 	Render(width, height uint) (image.Image, error)
 }
