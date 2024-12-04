@@ -53,18 +53,19 @@ func (rr *RGBDrawer) Draw() (image.Image, error) {
 
 // TODO: style is not applied correctly
 func (rr *RGBDrawer) getColor(value float64) color.RGBA {
-	var previous float64
 	for i, entry := range rr.styling.ColorMap {
 		if i == 0 {
-			previous = entry.Quantity
+			if value <= entry.Quantity {
+				return utils.HexToRGBA(entry.Color)
+			}
+
+			continue
 		}
 
-		if previous < value && value <= entry.Quantity {
+		if rr.styling.ColorMap[i-1].Quantity < value && value <= entry.Quantity {
 			return utils.HexToRGBA(entry.Color)
 		}
-
-		previous = entry.Quantity
 	}
-	// Default to black if no range matches
-	return color.RGBA{0, 0, 0, 0}
+
+	return utils.HexToRGBA(rr.styling.ColorMap[len(rr.styling.ColorMap)-1].Color)
 }
