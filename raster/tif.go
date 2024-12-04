@@ -10,33 +10,40 @@ import (
 
 type TifDriver struct {
 	bands []godal.Band
-	path  string
+	name  string
 	min   float64
 	max   float64
 	style *models.RasterStyle
 }
 
-func NewTifDriver(bands []godal.Band, path string, min, max float64, style *models.RasterStyle) RenderDriver {
+type TifDriverData struct {
+	Name  string
+	Bands []godal.Band
+	Min   float64
+	Max   float64
+	Style *models.RasterStyle
+}
+
+func NewTifDriver(data TifDriverData) Driver {
 	return &TifDriver{
-		bands: bands,
-		path:  path,
-		min:   min,
-		max:   max,
-		style: style,
+		bands: data.Bands,
+		name:  data.Name,
+		max:   data.Max,
+		min:   data.Min,
+		style: data.Style,
 	}
 }
 
-// TODO: check if gdal_translate to PNG and styling is possible
 func (td *TifDriver) Render(width, height uint) (image.Image, error) {
 	switch len(td.bands) {
 	case 1:
 		return td.renderSingleBand(width, height)
 	case 2:
-		return nil, fmt.Errorf("cannot render raster %s with 2 bands", td.path)
+		return nil, fmt.Errorf("cannot render raster %s with 2 Bands", td.name)
 	case 3:
 		//rgb
 	case 4:
-		return nil, fmt.Errorf("cannot render raster %s with 4 bands", td.path)
+		return nil, fmt.Errorf("cannot render raster %s with 4 Bands", td.name)
 	}
 
 	return nil, nil
@@ -52,16 +59,10 @@ func (td *TifDriver) renderSingleBand(width, height uint) (image.Image, error) {
 
 	if td.style != nil {
 		//style given, so use rgb renderer with the style schema
-		rgb := render.RGB(data, int(width), int(height), td.min, td.max, render.StyleOption(*td.style))
+		rgb := render.NewRGBDrawer(data, int(width), int(height), td.min, td.max, render.StyleOption(*td.style))
 		return rgb.Draw()
 	}
 
-	if td.min == 0 && td.max == 255 {
-		//grayscale (or apply style)
-		grayscale := render.Grayscale(data, int(width), int(height), td.min, td.max)
-		return grayscale.Draw()
-	} else {
-
-		return nil, fmt.Errorf("cannot render raster %s with values larger than 255", td.path)
-	}
+	grayscale := render.Grayscale(data, int(width), int(height), td.min, td.max)
+	return grayscale.Draw()
 }

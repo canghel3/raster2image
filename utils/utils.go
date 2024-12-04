@@ -1,11 +1,11 @@
-package raster
+package utils
 
 import (
 	"github.com/airbusgeo/godal"
 	"math/rand"
 )
 
-func minMaxDs(ds *godal.Dataset) (min, max float64, err error) {
+func MinMaxDs(ds *godal.Dataset) (min, max float64, err error) {
 	switch len(ds.Bands()) {
 	case 1:
 		band := ds.Bands()[0]
@@ -45,7 +45,7 @@ const (
 	zoomLevel  = 7
 )
 
-func generateRandomBBoxWithinExtent() [4]float64 {
+func GenerateRandomBBoxWithinExtent() [4]float64 {
 	// Calculate the tile size in map units (meters) at zoom level 7
 	totalMapWidth := maxExtentX - minExtentX
 	totalMapHeight := maxExtentY - minExtentY

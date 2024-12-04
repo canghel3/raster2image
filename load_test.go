@@ -1,7 +1,8 @@
-package raster
+package main
 
 import (
 	"bytes"
+	"github.com/canghel3/raster2image/utils"
 	"gotest.tools/v3/assert"
 	"image/png"
 	"os"
@@ -240,7 +241,7 @@ func BenchmarkZoom(b *testing.B) {
 	assert.Check(b, ds != nil)
 
 	for i := 0; i < b.N; i++ {
-		bbox := generateRandomBBoxWithinExtent()
+		bbox := utils.GenerateRandomBBoxWithinExtent()
 		ds, err = ds.Zoom(bbox, "EPSG:3857")
 		assert.NilError(b, err)
 		assert.Check(b, ds != nil)
@@ -263,21 +264,23 @@ func BenchmarkRender(b *testing.B) {
 	assert.Check(b, ds != nil)
 
 	b.Run("W/O STYLE", func(b *testing.B) {
-		for i := 0; i < b.N; i++ {
-			bbox := generateRandomBBoxWithinExtent()
-			zoomed, err := ds.Zoom(bbox, "EPSG:3857")
-			assert.NilError(b, err)
+		b.RunParallel(func(pb *testing.PB) {
+			for pb.Next() {
+				bbox := utils.GenerateRandomBBoxWithinExtent()
+				zoomed, err := ds.Zoom(bbox, "EPSG:3857")
+				assert.NilError(b, err)
 
-			render, err := zoomed.Render(256, 256)
-			assert.NilError(b, err)
+				render, err := zoomed.Render(256, 256)
+				assert.NilError(b, err)
 
-			var buf bytes.Buffer
-			err = png.Encode(&buf, render)
-			assert.NilError(b, err)
+				var buf bytes.Buffer
+				err = png.Encode(&buf, render)
+				assert.NilError(b, err)
 
-			// prevent compiler optimizations by using the buffer's length
-			_ = buf.Len()
-		}
+				// prevent compiler optimizations by using the buffer's length
+				_ = buf.Len()
+			}
+		})
 	})
 
 	b.Run("W/ STYLE", func(b *testing.B) {
@@ -285,20 +288,22 @@ func BenchmarkRender(b *testing.B) {
 		assert.NilError(b, err)
 		assert.Check(b, ds != nil)
 
-		for i := 0; i < b.N; i++ {
-			bbox := generateRandomBBoxWithinExtent()
-			zoomed, err := ds.Zoom(bbox, "EPSG:3857")
-			assert.NilError(b, err)
+		b.RunParallel(func(pb *testing.PB) {
+			for pb.Next() {
+				bbox := utils.GenerateRandomBBoxWithinExtent()
+				zoomed, err := ds.Zoom(bbox, "EPSG:3857")
+				assert.NilError(b, err)
 
-			render, err := zoomed.Render(256, 256)
-			assert.NilError(b, err)
+				render, err := zoomed.Render(256, 256)
+				assert.NilError(b, err)
 
-			var buf bytes.Buffer
-			err = png.Encode(&buf, render)
-			assert.NilError(b, err)
+				var buf bytes.Buffer
+				err = png.Encode(&buf, render)
+				assert.NilError(b, err)
 
-			// Prevent compiler optimizations by using the buffer's length
-			_ = buf.Len()
-		}
+				// Prevent compiler optimizations by using the buffer's length
+				_ = buf.Len()
+			}
+		})
 	})
 }

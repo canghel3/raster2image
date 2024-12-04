@@ -1,4 +1,4 @@
-package raster
+package main
 
 import (
 	"github.com/canghel3/raster2image/parser"
@@ -11,7 +11,7 @@ func WithStyle(style string) LoadOption {
 	return func(g *GodalDataset) {
 		switch filepath.Ext(filepath.Base(style)) {
 		case ".css", "css":
-			s, err := parser.NewCSSParser(style).ParseRasterStyle()
+			s, err := parser.NewCSSParser(style).Parse()
 			if err == nil {
 				g.data.style = s
 			}

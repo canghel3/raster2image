@@ -1,13 +1,13 @@
 package render
 
 import (
-	"github.com/canghel3/raster2image/helpers"
 	"github.com/canghel3/raster2image/models"
+	"github.com/canghel3/raster2image/utils"
 	"image"
 	"image/color"
 )
 
-type RGBRenderer struct {
+type RGBDrawer struct {
 	width  int
 	height int
 
@@ -19,8 +19,8 @@ type RGBRenderer struct {
 	styling models.RasterStyle
 }
 
-func RGB(data []float64, width, height int, min, max float64, options ...RGBRendererOption) Renderer {
-	r := RGBRenderer{
+func NewRGBDrawer(data []float64, width, height int, min, max float64, options ...RGBRendererOption) Drawer {
+	r := RGBDrawer{
 		width:  width,
 		height: height,
 		data:   data,
@@ -35,15 +35,15 @@ func RGB(data []float64, width, height int, min, max float64, options ...RGBRend
 	return &r
 }
 
-type RGBRendererOption func(*RGBRenderer)
+type RGBRendererOption func(*RGBDrawer)
 
 func StyleOption(entry models.RasterStyle) RGBRendererOption {
-	return func(r *RGBRenderer) {
+	return func(r *RGBDrawer) {
 		r.styling = entry
 	}
 }
 
-func (rr *RGBRenderer) Draw() (image.Image, error) {
+func (rr *RGBDrawer) Draw() (image.Image, error) {
 	img := image.NewRGBA(image.Rect(0, 0, rr.width, rr.height))
 
 	rangeVal := rr.max - rr.min
@@ -52,8 +52,8 @@ func (rr *RGBRenderer) Draw() (image.Image, error) {
 	}
 
 	// Normalize and apply the color map
-	for y := 0; y < rr.height; y++ {
-		for x := 0; x < rr.width; x++ {
+	for y := 0; y < rr.width; y++ {
+		for x := 0; x < rr.height; x++ {
 			value := rr.data[y*rr.width+x]
 			img.Set(x, y, rr.getColor(value))
 		}
@@ -61,7 +61,8 @@ func (rr *RGBRenderer) Draw() (image.Image, error) {
 	return img, nil
 }
 
-func (rr *RGBRenderer) getColor(value float64) color.RGBA {
+// TODO: style is not applied correctly
+func (rr *RGBDrawer) getColor(value float64) color.RGBA {
 	var previous float64
 	for i, entry := range rr.styling.ColorMap {
 		if i == 0 {
@@ -69,7 +70,7 @@ func (rr *RGBRenderer) getColor(value float64) color.RGBA {
 		}
 
 		if previous < value && value <= entry.Quantity {
-			return helpers.HexToRGBA(entry.Color)
+			return utils.HexToRGBA(entry.Color)
 		}
 
 		previous = entry.Quantity

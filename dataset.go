@@ -1,20 +1,23 @@
-package raster
+package main
 
 import (
 	"errors"
 	"fmt"
 	"github.com/airbusgeo/godal"
 	"github.com/canghel3/raster2image/models"
+	"github.com/canghel3/raster2image/raster"
 	"image"
 	"path/filepath"
 	"sync"
 )
 
 type GodalDataset struct {
-	//TODO: if lock contention is high, use a renderer worker pool or find a scalable alternative
-	rw   sync.RWMutex
-	data Data
-	path string
+	//TODO: if lock contention is high find a scalable alternative
+	//each dataset will have its own lock. zooming and rendering overwrites the godal dataset so using a different lock is fine.
+	rw     sync.RWMutex
+	data   Data
+	driver raster.Driver
+	path   string
 }
 
 type Data struct {
@@ -24,11 +27,12 @@ type Data struct {
 	ds    *godal.Dataset
 }
 
-func (gd *GodalDataset) Render(width, height uint) (image.Image, error) {
+func (gd *GodalDataset) Render(width, height int) (image.Image, error) {
 	gd.rw.Lock()
 	if gd.data.ds == nil {
 		return nil, errors.New("godal dataset is nil")
 	}
+	//TODO: fmt.Sprintf is slow, use a different approach
 	warped, err := gd.data.ds.Warp("", []string{
 		"-of", "MEM",
 		"-ts", fmt.Sprintf("%d", width), fmt.Sprintf("%d", height),
@@ -40,12 +44,9 @@ func (gd *GodalDataset) Render(width, height uint) (image.Image, error) {
 
 	cpy := gd.shallowCopy()
 	cpy.data.ds = warped
-	driver, err := cpy.newRenderDriver()
-	if err != nil {
-		return nil, err
-	}
 
-	return driver.Render(width, height)
+	//TODO: create a new renderer for each specific set of data every time?
+	return cpy.driver.Render(uint(width), uint(height))
 }
 
 func (gd *GodalDataset) Copy() (*GodalDataset, error) {
@@ -66,17 +67,25 @@ func (gd *GodalDataset) Copy() (*GodalDataset, error) {
 	return cpy, nil
 }
 
-func (gd *GodalDataset) newRenderDriver() (RenderDriver, error) {
+func (gd *GodalDataset) newRasterDriver() (raster.Driver, error) {
 	ext := filepath.Ext(filepath.Base(gd.path))
 	switch ext {
-	case ".tif", "tif":
-		return NewTifDriver(gd.data.ds.Bands(), gd.path, gd.data.min, gd.data.max, gd.data.style), nil
+	case ".tif":
+		tifDriverData := raster.TifDriverData{
+			Name:  gd.path,
+			Bands: gd.data.ds.Bands(),
+			Min:   gd.data.min,
+			Max:   gd.data.max,
+			Style: gd.data.style,
+		}
+
+		return raster.NewTifDriver(tifDriverData), nil
 	}
 
 	return nil, fmt.Errorf("no driver found for %s", ext)
 }
 
-// Zoom essentially warps the dataset to the specified bbox extent (minX,minY,maxX,maxY format).
+// Zoom warps the dataset to the specified bbox extent (minX,minY,maxX,maxY format).
 // The underlying dataset is not modified.
 // It's recommended to defer Release on the returned dataset to avoid any resource leaks.
 func (gd *GodalDataset) Zoom(bbox [4]float64, srs string) (*GodalDataset, error) {
@@ -105,8 +114,10 @@ func (gd *GodalDataset) Zoom(bbox [4]float64, srs string) (*GodalDataset, error)
 
 func (gd *GodalDataset) shallowCopy() *GodalDataset {
 	newGd := &GodalDataset{
-		data: gd.data,
-		path: gd.path,
+		rw:     sync.RWMutex{},
+		data:   gd.data,
+		path:   gd.path,
+		driver: gd.driver,
 	}
 
 	return newGd

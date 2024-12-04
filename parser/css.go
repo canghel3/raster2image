@@ -1,7 +1,6 @@
 package parser
 
 import (
-	"errors"
 	"fmt"
 	"github.com/canghel3/raster2image/models"
 	"os"
@@ -18,7 +17,7 @@ func NewCSSParser(path string) StyleParser {
 	}
 }
 
-func (cp *CSSParser) ParseRasterStyle() (*models.RasterStyle, error) {
+func (cp *CSSParser) Parse() (*models.RasterStyle, error) {
 	content, err := os.ReadFile(cp.path)
 	if err != nil {
 		return nil, err
@@ -76,8 +75,4 @@ func (cp *CSSParser) ParseRasterStyle() (*models.RasterStyle, error) {
 	}
 
 	return style, nil
-}
-
-func (cp *CSSParser) ParseVectorStyle() (*models.RasterStyle, error) {
-	return nil, errors.New("not implemented")
 }

@@ -2,6 +2,6 @@ package render
 
 import "image"
 
-type Renderer interface {
+type Drawer interface {
 	Draw() (image.Image, error)
 }

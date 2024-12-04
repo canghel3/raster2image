@@ -1,8 +1,9 @@
-package raster
+package main
 
 import (
 	"errors"
 	"github.com/airbusgeo/godal"
+	"github.com/canghel3/raster2image/utils"
 	"path/filepath"
 	"sync"
 )
@@ -31,7 +32,17 @@ func Load(path string, options ...LoadOption) (*GodalDataset, error) {
 		return nil, err
 	}
 
-	min, max, err := minMaxDs(ds)
+	//transform to tiled raster
+	//ds, err = ds.Translate("", []string{
+	//	"-of", "MEM",
+	//	"-co", "TILED=YES",
+	//})
+	//if err != nil {
+	//	return nil, err
+	//}
+
+	//TODO: remove min and max, they are not useful
+	min, max, err := utils.MinMaxDs(ds)
 	if err != nil {
 		return nil, err
 	}
@@ -44,6 +55,13 @@ func Load(path string, options ...LoadOption) (*GodalDataset, error) {
 		},
 		path: path,
 	}
+
+	driver, err := gd.newRasterDriver()
+	if err != nil {
+		return nil, err
+	}
+
+	gd.driver = driver
 
 	for _, option := range options {
 		option(&gd)
