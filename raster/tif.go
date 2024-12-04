@@ -9,8 +9,8 @@ import (
 )
 
 type TifDriver struct {
-	bands []godal.Band
 	name  string
+	bands []godal.Band
 	min   float64
 	max   float64
 	style *models.RasterStyle
@@ -26,8 +26,8 @@ type TifDriverData struct {
 
 func NewTifDriver(data TifDriverData) Driver {
 	return &TifDriver{
-		bands: data.Bands,
 		name:  data.Name,
+		bands: data.Bands,
 		max:   data.Max,
 		min:   data.Min,
 		style: data.Style,
@@ -59,7 +59,7 @@ func (td *TifDriver) renderSingleBand(width, height uint) (image.Image, error) {
 
 	if td.style != nil {
 		//style given, so use rgb renderer with the style schema
-		rgb := render.NewRGBDrawer(data, int(width), int(height), td.min, td.max, render.StyleOption(*td.style))
+		rgb := render.NewRGBDrawer(data, int(width), int(height), render.StyleOption(*td.style))
 		return rgb.Draw()
 	}
 

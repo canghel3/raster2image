@@ -56,13 +56,6 @@ func Load(path string, options ...LoadOption) (*GodalDataset, error) {
 		path: path,
 	}
 
-	driver, err := gd.newRasterDriver()
-	if err != nil {
-		return nil, err
-	}
-
-	gd.driver = driver
-
 	for _, option := range options {
 		option(&gd)
 	}

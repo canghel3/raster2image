@@ -13,19 +13,14 @@ type RGBDrawer struct {
 
 	data []float64
 
-	min float64
-	max float64
-
 	styling models.RasterStyle
 }
 
-func NewRGBDrawer(data []float64, width, height int, min, max float64, options ...RGBRendererOption) Drawer {
+func NewRGBDrawer(data []float64, width, height int, options ...RGBRendererOption) Drawer {
 	r := RGBDrawer{
 		width:  width,
 		height: height,
 		data:   data,
-		min:    min,
-		max:    max,
 	}
 
 	for _, option := range options {
@@ -46,14 +41,9 @@ func StyleOption(entry models.RasterStyle) RGBRendererOption {
 func (rr *RGBDrawer) Draw() (image.Image, error) {
 	img := image.NewRGBA(image.Rect(0, 0, rr.width, rr.height))
 
-	rangeVal := rr.max - rr.min
-	if rangeVal == 0 {
-		rangeVal = 1
-	}
-
-	// Normalize and apply the color map
-	for y := 0; y < rr.width; y++ {
-		for x := 0; x < rr.height; x++ {
+	//apply the color map
+	for y := 0; y < rr.height; y++ {
+		for x := 0; x < rr.width; x++ {
 			value := rr.data[y*rr.width+x]
 			img.Set(x, y, rr.getColor(value))
 		}

@@ -17,13 +17,13 @@ func MinMaxDs(ds *godal.Dataset) (min, max float64, err error) {
 			return min, max, err
 		}
 
-		min, max = minMax(data)
+		min, max = MinMax(data)
 	}
 
 	return min, max, nil
 }
 
-func minMax(data []float64) (min, max float64) {
+func MinMax(data []float64) (min, max float64) {
 	min, max = 0, 0
 	for _, v := range data {
 		if v < min {
