@@ -1,11 +1,10 @@
-package main
+package raster
 
 import (
 	"errors"
 	"fmt"
 	"github.com/airbusgeo/godal"
 	"github.com/canghel3/raster2image/models"
-	"github.com/canghel3/raster2image/raster"
 	"image"
 	"path/filepath"
 	"sync"
@@ -16,7 +15,7 @@ type GodalDataset struct {
 	//each dataset will have its own lock. zooming and rendering overwrites the godal dataset so using a different lock is fine.
 	rw     sync.RWMutex
 	data   Data
-	driver raster.Driver
+	driver Driver
 	path   string
 }
 
@@ -67,11 +66,11 @@ func (gd *GodalDataset) Copy() (*GodalDataset, error) {
 	return cpy, nil
 }
 
-func (gd *GodalDataset) newRasterDriver() (raster.Driver, error) {
+func (gd *GodalDataset) newRasterDriver() (Driver, error) {
 	ext := filepath.Ext(filepath.Base(gd.path))
 	switch ext {
 	case ".tif":
-		tifDriverData := raster.TifDriverData{
+		tifDriverData := TifDriverData{
 			Name:  gd.path,
 			Bands: gd.data.ds.Bands(),
 			Min:   gd.data.min,
@@ -79,7 +78,7 @@ func (gd *GodalDataset) newRasterDriver() (raster.Driver, error) {
 			Style: gd.data.style,
 		}
 
-		return raster.NewTifDriver(tifDriverData), nil
+		return NewTifDriver(tifDriverData), nil
 	}
 
 	return nil, fmt.Errorf("no driver found for %s", ext)

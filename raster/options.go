@@ -1,4 +1,4 @@
-package main
+package raster
 
 import (
 	"github.com/canghel3/raster2image/parser"
