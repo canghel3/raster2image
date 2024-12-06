@@ -1,7 +1,10 @@
 package raster
 
-import "image"
+import (
+	"github.com/airbusgeo/godal"
+	"image"
+)
 
 type Driver interface {
-	Render(width, height uint) (image.Image, error)
+	Render(bands []godal.Band, width, height uint) (image.Image, error)
 }

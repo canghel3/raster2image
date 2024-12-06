@@ -13,9 +13,10 @@ import (
 type GodalDataset struct {
 	//TODO: if lock contention is high find a scalable alternative
 	//each dataset will have its own lock. zooming and rendering overwrites the godal dataset so using a different lock is fine.
-	rw   sync.RWMutex
-	data Data
-	path string
+	rw     sync.RWMutex
+	data   Data
+	driver Driver
+	path   string
 }
 
 type Data struct {
@@ -40,16 +41,7 @@ func (gd *GodalDataset) Render(width, height int) (image.Image, error) {
 		return nil, err
 	}
 
-	cpy := gd.shallowCopy()
-	cpy.data.ds = warped
-
-	driver, err := cpy.newRasterDriver()
-	if err != nil {
-		return nil, err
-	}
-
-	//TODO: create a new renderer for each specific set of data every time?
-	return driver.Render(uint(width), uint(height))
+	return gd.driver.Render(warped.Bands(), uint(width), uint(height))
 }
 
 func (gd *GodalDataset) Copy() (*GodalDataset, error) {
@@ -70,13 +62,12 @@ func (gd *GodalDataset) Copy() (*GodalDataset, error) {
 	return cpy, nil
 }
 
-func (gd *GodalDataset) newRasterDriver() (Driver, error) {
-	ext := filepath.Ext(filepath.Base(gd.path))
+func (gd *GodalDataset) newDriver() (Driver, error) {
+	ext := filepath.Ext(gd.path)
 	switch ext {
 	case ".tif":
 		tifDriverData := TifDriverData{
 			Name:  gd.path,
-			Bands: gd.data.ds.Bands(),
 			Min:   gd.data.min,
 			Max:   gd.data.max,
 			Style: gd.data.style,
@@ -117,9 +108,10 @@ func (gd *GodalDataset) Zoom(bbox [4]float64, srs string) (*GodalDataset, error)
 
 func (gd *GodalDataset) shallowCopy() *GodalDataset {
 	newGd := &GodalDataset{
-		rw:   sync.RWMutex{},
-		data: gd.data,
-		path: gd.path,
+		rw:     sync.RWMutex{},
+		data:   gd.data,
+		driver: gd.driver,
+		path:   gd.path,
 	}
 
 	return newGd

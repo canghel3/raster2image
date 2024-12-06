@@ -10,7 +10,6 @@ import (
 
 type TifDriver struct {
 	name  string
-	bands []godal.Band
 	min   float64
 	max   float64
 	style *models.RasterStyle
@@ -18,7 +17,6 @@ type TifDriver struct {
 
 type TifDriverData struct {
 	Name  string
-	Bands []godal.Band
 	Min   float64
 	Max   float64
 	Style *models.RasterStyle
@@ -27,17 +25,16 @@ type TifDriverData struct {
 func NewTifDriver(data TifDriverData) Driver {
 	return &TifDriver{
 		name:  data.Name,
-		bands: data.Bands,
 		max:   data.Max,
 		min:   data.Min,
 		style: data.Style,
 	}
 }
 
-func (td *TifDriver) Render(width, height uint) (image.Image, error) {
-	switch len(td.bands) {
+func (td *TifDriver) Render(bands []godal.Band, width, height uint) (image.Image, error) {
+	switch len(bands) {
 	case 1:
-		return td.renderSingleBand(width, height)
+		return td.renderSingleBand(bands, width, height)
 	case 2:
 		return nil, fmt.Errorf("cannot render raster %s with 2 Bands", td.name)
 	case 3:
@@ -49,8 +46,8 @@ func (td *TifDriver) Render(width, height uint) (image.Image, error) {
 	return nil, nil
 }
 
-func (td *TifDriver) renderSingleBand(width, height uint) (image.Image, error) {
-	band := td.bands[0]
+func (td *TifDriver) renderSingleBand(bands []godal.Band, width, height uint) (image.Image, error) {
+	band := bands[0]
 	var data = make([]float64, width*height)
 	err := band.Read(0, 0, data, int(width), int(height))
 	if err != nil {

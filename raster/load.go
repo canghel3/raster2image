@@ -60,6 +60,13 @@ func Load(path string, options ...LoadOption) (*GodalDataset, error) {
 		option(&gd)
 	}
 
+	driver, err := gd.newDriver()
+	if err != nil {
+		return nil, err
+	}
+
+	gd.driver = driver
+
 	R.mx.Lock()
 	R.registry[filepath.Base(path)] = &gd
 	R.mx.Unlock()

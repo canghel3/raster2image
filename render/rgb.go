@@ -51,7 +51,6 @@ func (rr *RGBDrawer) Draw() (image.Image, error) {
 	return img, nil
 }
 
-// TODO: style is not applied correctly
 func (rr *RGBDrawer) getColor(value float64) color.RGBA {
 	for i, entry := range rr.styling.ColorMap {
 		if i == 0 {
