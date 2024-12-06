@@ -35,7 +35,7 @@ func (gd *GodalDataset) Render(width, height int) (image.Image, error) {
 	warped, err := gd.data.ds.Warp("", []string{
 		"-of", "MEM",
 		"-ts", fmt.Sprintf("%d", width), fmt.Sprintf("%d", height),
-		"-r", "nearest",
+		"-r", "bilinear",
 	})
 	gd.rw.Unlock()
 	if err != nil {
@@ -90,7 +90,7 @@ func (gd *GodalDataset) Zoom(bbox [4]float64, srs string) (*GodalDataset, error)
 		"-s_srs", srs,
 		"-t_srs", srs, // target spatial reference system
 		"-te_srs", "EPSG:3857",
-		"-r", "nearest",
+		"-r", "bilinear",
 	}
 
 	gd.rw.Lock()
