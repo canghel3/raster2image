@@ -49,7 +49,7 @@ func (td *TifDriver) Render(bands []godal.Band, width, height uint) (image.Image
 func (td *TifDriver) renderSingleBand(bands []godal.Band, width, height uint) (image.Image, error) {
 	band := bands[0]
 	var data = make([]float64, width*height)
-	err := band.Read(0, 0, data, int(width), int(height))
+	err := band.Read(0, 0, data, int(width), int(height), godal.Resampling(godal.Nearest))
 	if err != nil {
 		return nil, err
 	}
