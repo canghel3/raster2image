@@ -41,9 +41,10 @@ func Load(path string, options ...LoadOption) (Driver, error) {
 	switch filepath.Ext(path) {
 	case ".tif":
 		tifDriverData := TifDriverData{
-			Name: path,
-			Min:  min,
-			Max:  max,
+			Name:    path,
+			Dataset: ds,
+			Min:     min,
+			Max:     max,
 		}
 
 		driver = NewTifDriver(tifDriverData)
