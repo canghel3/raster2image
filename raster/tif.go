@@ -73,7 +73,7 @@ func (td *TifDriver) renderSingleBand(bbox [4]float64, width, height uint) (imag
 	finalHeight := int(height)
 	var dataToDraw []float64
 	if finalWidth != xSize || finalHeight != ySize {
-		dataToDraw = resampleData(data, xSize, ySize, finalWidth, finalHeight)
+		dataToDraw = bilinearResample(data, xSize, ySize, finalWidth, finalHeight)
 	} else {
 		dataToDraw = data
 	}
@@ -145,7 +145,7 @@ func (td *TifDriver) getOffsetsAndSize(bbox [4]float64) (xOff, yOff, xSize, ySiz
 	return xOff, yOff, xSize, ySize, nil
 }
 
-func resampleData(src []float64, srcWidth, srcHeight, dstWidth, dstHeight int) []float64 {
+func nearestResample(src []float64, srcWidth, srcHeight, dstWidth, dstHeight int) []float64 {
 	if dstWidth == srcWidth && dstHeight == srcHeight {
 		// No resampling needed, just return a copy
 		out := make([]float64, len(src))
@@ -173,6 +173,49 @@ func resampleData(src []float64, srcWidth, srcHeight, dstWidth, dstHeight int) [
 			}
 
 			out[y*dstWidth+x] = src[srcY*srcWidth+srcX]
+		}
+	}
+
+	return out
+}
+
+func bilinearResample(src []float64, srcWidth, srcHeight, dstWidth, dstHeight int) []float64 {
+	out := make([]float64, dstWidth*dstHeight)
+	xRatio := float64(srcWidth-1) / float64(dstWidth-1)
+	yRatio := float64(srcHeight-1) / float64(dstHeight-1)
+
+	for y := 0; y < dstHeight; y++ {
+		for x := 0; x < dstWidth; x++ {
+			// Map dst pixel to fractional src coordinates
+			srcX := float64(x) * xRatio
+			srcY := float64(y) * yRatio
+
+			xFloor := int(math.Floor(srcX))
+			yFloor := int(math.Floor(srcY))
+			xCeil := xFloor + 1
+			yCeil := yFloor + 1
+
+			if xCeil >= srcWidth {
+				xCeil = srcWidth - 1
+			}
+			if yCeil >= srcHeight {
+				yCeil = srcHeight - 1
+			}
+
+			topLeft := src[yFloor*srcWidth+xFloor]
+			topRight := src[yFloor*srcWidth+xCeil]
+			bottomLeft := src[yCeil*srcWidth+xFloor]
+			bottomRight := src[yCeil*srcWidth+xCeil]
+
+			xFrac := srcX - float64(xFloor)
+			yFrac := srcY - float64(yFloor)
+
+			// Interpolate in X
+			topVal := topLeft + (topRight-topLeft)*xFrac
+			bottomVal := bottomLeft + (bottomRight-bottomLeft)*xFrac
+
+			// Interpolate in Y
+			out[y*dstWidth+x] = topVal + (bottomVal-topVal)*yFrac
 		}
 	}
 
