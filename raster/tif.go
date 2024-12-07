@@ -67,13 +67,24 @@ func (td *TifDriver) renderSingleBand(bbox [4]float64, width, height uint) (imag
 		return nil, err
 	}
 
+	// If the requested output size differs from xSize, ySize, we must resample
+	// If width == xSize && height == ySize, no resampling needed
+	finalWidth := int(width)
+	finalHeight := int(height)
+	var dataToDraw []float64
+	if finalWidth != xSize || finalHeight != ySize {
+		dataToDraw = resampleData(data, xSize, ySize, finalWidth, finalHeight)
+	} else {
+		dataToDraw = data
+	}
+
 	if td.style != nil {
 		//setStyle given, so use rgb renderer with the setStyle schema
-		rgb := render.NewRGBDrawer(data, int(width), int(height), render.StyleOption(*td.style))
+		rgb := render.NewRGBDrawer(dataToDraw, int(width), int(height), render.StyleOption(*td.style))
 		return rgb.Draw()
 	}
 
-	grayscale := render.Grayscale(data, int(width), int(height), td.min, td.max)
+	grayscale := render.Grayscale(dataToDraw, int(width), int(height), td.min, td.max)
 	return grayscale.Draw()
 }
 
@@ -132,4 +143,38 @@ func (td *TifDriver) getOffsetsAndSize(bbox [4]float64) (xOff, yOff, xSize, ySiz
 	}
 
 	return xOff, yOff, xSize, ySize, nil
+}
+
+func resampleData(src []float64, srcWidth, srcHeight, dstWidth, dstHeight int) []float64 {
+	if dstWidth == srcWidth && dstHeight == srcHeight {
+		// No resampling needed, just return a copy
+		out := make([]float64, len(src))
+		copy(out, src)
+		return out
+	}
+
+	out := make([]float64, dstWidth*dstHeight)
+	// Compute ratios
+	xRatio := float64(srcWidth) / float64(dstWidth)
+	yRatio := float64(srcHeight) / float64(dstHeight)
+
+	for y := 0; y < dstHeight; y++ {
+		for x := 0; x < dstWidth; x++ {
+			// Map the output pixel back to source coordinates
+			srcX := int(float64(x) * xRatio)
+			srcY := int(float64(y) * yRatio)
+
+			// Clamp to avoid any floating rounding issues (shouldn't normally happen)
+			if srcX >= srcWidth {
+				srcX = srcWidth - 1
+			}
+			if srcY >= srcHeight {
+				srcY = srcHeight - 1
+			}
+
+			out[y*dstWidth+x] = src[srcY*srcWidth+srcX]
+		}
+	}
+
+	return out
 }
