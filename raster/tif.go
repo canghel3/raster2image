@@ -6,6 +6,7 @@ import (
 	"github.com/canghel3/raster2image/models"
 	"github.com/canghel3/raster2image/render"
 	"image"
+	"log"
 	"math"
 	"sync"
 )
@@ -69,24 +70,24 @@ func (td *TifDriver) renderSingleBand(bbox [4]float64, width, height uint) (imag
 
 	// If the requested output size differs from xSize, ySize, we must resample
 	// If width == xSize && height == ySize, no resampling needed
-	//finalWidth := int(width)
-	//finalHeight := int(height)
-	//var dataToDraw []float64
-	//if finalWidth != xSize || finalHeight != ySize {
-	//	log.Println("resampling")
-	//	dataToDraw = nearestResample(data, xSize, ySize, finalWidth, finalHeight)
-	//} else {
-	//	log.Println("NOT RESAMPLING")
-	//	dataToDraw = data
-	//}
+	finalWidth := int(width)
+	finalHeight := int(height)
+	var dataToDraw []float64
+	if finalWidth != xSize || finalHeight != ySize {
+		log.Println("resampling")
+		dataToDraw = nearestResample(data, xSize, ySize, finalWidth, finalHeight)
+	} else {
+		log.Println("NOT RESAMPLING")
+		dataToDraw = data
+	}
 
 	if td.style != nil {
 		//setStyle given, so use rgb renderer with the setStyle schema
-		rgb := render.NewRGBDrawer(data, int(width), int(height), render.StyleOption(*td.style))
+		rgb := render.NewRGBDrawer(dataToDraw, int(width), int(height), render.StyleOption(*td.style))
 		return rgb.Draw()
 	}
 
-	grayscale := render.Grayscale(data, int(width), int(height), td.min, td.max)
+	grayscale := render.Grayscale(dataToDraw, int(width), int(height), td.min, td.max)
 	return grayscale.Draw()
 }
 
