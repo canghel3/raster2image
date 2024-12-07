@@ -53,15 +53,15 @@ func (td *TifDriver) Render(bbox [4]float64, width, height uint) (image.Image, e
 }
 
 func (td *TifDriver) renderSingleBand(bbox [4]float64, width, height uint) (image.Image, error) {
-	xOffset, yOffset, err := td.getOffset(bbox)
+	xOff, yOff, xSize, ySize, err := td.getOffsetsAndSize(bbox)
 	if err != nil {
 		return nil, err
 	}
 
 	band := td.dataset.Bands()[0]
-	var data = make([]float64, width*height)
+	var data = make([]float64, xSize*ySize)
 	td.lock.RLock()
-	err = band.Read(xOffset, yOffset, data, int(width), int(height))
+	err = band.Read(xOff, yOff, data, xSize, ySize)
 	td.lock.RUnlock()
 	if err != nil {
 		return nil, err
@@ -87,23 +87,49 @@ func (td *TifDriver) setStyle(style *models.RasterStyle) {
 	td.style = style
 }
 
-func (td *TifDriver) getOffset(bbox [4]float64) (x, y int, err error) {
+func (td *TifDriver) getOffsetsAndSize(bbox [4]float64) (xOff, yOff, xSize, ySize int, err error) {
 	gt, err := td.dataset.GeoTransform()
 	if err != nil {
-		return 0, 0, err
+		return 0, 0, 0, 0, err
 	}
 
-	//bbox (minX, minY, maxX, maxY)
-	minX, _, _, maxY := bbox[0], bbox[1], bbox[2], bbox[3]
+	minX, minY, maxX, maxY := bbox[0], bbox[1], bbox[2], bbox[3]
 
-	//calculate pixel offsets and sizes
-	xOffset := int(math.Floor((minX - gt[0]) / gt[1]))
-	yOffset := int(math.Floor((maxY - gt[3]) / gt[5]))
-	//xEnd := int(math.Ceil((maxX - gt[0]) / gt[1]))
-	//yEnd := int(math.Ceil((minY - gt[3]) / gt[5]))
+	xOffFloat := (minX - gt[0]) / gt[1]
+	yOffFloat := (maxY - gt[3]) / gt[5]
+	xEndFloat := (maxX - gt[0]) / gt[1]
+	yEndFloat := (minY - gt[3]) / gt[5]
 
-	//width := xEnd - xOffset
-	//height := yEnd - yOffset
+	xOff = int(math.Floor(xOffFloat))
+	yOff = int(math.Floor(yOffFloat))
+	xEnd := int(math.Ceil(xEndFloat))
+	yEnd := int(math.Ceil(yEndFloat))
 
-	return xOffset, yOffset, nil
+	xSize = xEnd - xOff
+	ySize = yEnd - yOff
+
+	// Clip to dataset boundaries
+	dsWidth := td.dataset.Structure().SizeX
+	dsHeight := td.dataset.Structure().SizeY
+
+	if xOff < 0 {
+		xSize += xOff
+		xOff = 0
+	}
+	if yOff < 0 {
+		ySize += yOff
+		yOff = 0
+	}
+	if xOff+xSize > dsWidth {
+		xSize = dsWidth - xOff
+	}
+	if yOff+ySize > dsHeight {
+		ySize = dsHeight - yOff
+	}
+
+	if xSize <= 0 || ySize <= 0 {
+		return 0, 0, 0, 0, fmt.Errorf("requested area is outside the raster extent")
+	}
+
+	return xOff, yOff, xSize, ySize, nil
 }
