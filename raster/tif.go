@@ -6,7 +6,6 @@ import (
 	"github.com/canghel3/raster2image/models"
 	"github.com/canghel3/raster2image/render"
 	"image"
-	"log"
 	"math"
 	"sync"
 )
@@ -70,24 +69,24 @@ func (td *TifDriver) renderSingleBand(bbox [4]float64, width, height uint) (imag
 
 	// If the requested output size differs from xSize, ySize, we must resample
 	// If width == xSize && height == ySize, no resampling needed
-	finalWidth := int(width)
-	finalHeight := int(height)
-	var dataToDraw []float64
-	if finalWidth != xSize || finalHeight != ySize {
-		log.Println("resampling")
-		dataToDraw = nearestResample(data, xSize, ySize, finalWidth, finalHeight)
-	} else {
-		log.Println("NOT RESAMPLING")
-		dataToDraw = data
-	}
+	//finalWidth := int(width)
+	//finalHeight := int(height)
+	//var dataToDraw []float64
+	//if finalWidth != xSize || finalHeight != ySize {
+	//	log.Println("resampling")
+	//	dataToDraw = nearestResample(data, xSize, ySize, finalWidth, finalHeight)
+	//} else {
+	//	log.Println("NOT RESAMPLING")
+	//	dataToDraw = data
+	//}
 
 	if td.style != nil {
 		//setStyle given, so use rgb renderer with the setStyle schema
-		rgb := render.NewRGBDrawer(dataToDraw, int(width), int(height), render.StyleOption(*td.style))
+		rgb := render.NewRGBDrawer(data, int(width), int(height), render.StyleOption(*td.style))
 		return rgb.Draw()
 	}
 
-	grayscale := render.Grayscale(dataToDraw, int(width), int(height), td.min, td.max)
+	grayscale := render.Grayscale(data, int(width), int(height), td.min, td.max)
 	return grayscale.Draw()
 }
 
@@ -109,11 +108,13 @@ func (td *TifDriver) getOffsetsAndSize(bbox [4]float64) (xOff, yOff, xSize, ySiz
 
 	minX, minY, maxX, maxY := bbox[0], bbox[1], bbox[2], bbox[3]
 
+	// Convert from georeferenced to pixel space
 	xOffFloat := (minX - gt[0]) / gt[1]
-	yOffFloat := (maxY - gt[3]) / gt[5]
+	yOffFloat := (maxY - gt[3]) / gt[5] // Note: gt[5] is usually negative
 	xEndFloat := (maxX - gt[0]) / gt[1]
 	yEndFloat := (minY - gt[3]) / gt[5]
 
+	// Use floor/ceil to get pixel boundaries
 	xOff = int(math.Floor(xOffFloat))
 	yOff = int(math.Floor(yOffFloat))
 	xEnd := int(math.Ceil(xEndFloat))
@@ -122,10 +123,10 @@ func (td *TifDriver) getOffsetsAndSize(bbox [4]float64) (xOff, yOff, xSize, ySiz
 	xSize = xEnd - xOff
 	ySize = yEnd - yOff
 
-	// Clip to dataset boundaries
 	dsWidth := td.dataset.Structure().SizeX
 	dsHeight := td.dataset.Structure().SizeY
 
+	// Clamp values to dataset boundaries
 	if xOff < 0 {
 		xSize += xOff
 		xOff = 0
