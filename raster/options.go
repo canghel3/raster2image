@@ -5,17 +5,16 @@ import (
 	"path/filepath"
 )
 
-type LoadOption func(*GodalDataset)
+type LoadOption func(driver Driver)
 
-func WithStyle(style string) LoadOption {
-	return func(g *GodalDataset) {
+func WithStyle(style string) func(driver Driver) {
+	return func(driver Driver) {
 		switch filepath.Ext(filepath.Base(style)) {
 		case ".css", "css":
 			s, err := parser.NewCSSParser(style).Parse()
 			if err == nil {
-				g.data.style = s
+				driver.setStyle(s)
 			}
 		}
-		return
 	}
 }

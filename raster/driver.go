@@ -1,10 +1,12 @@
 package raster
 
 import (
-	"github.com/airbusgeo/godal"
+	"github.com/canghel3/raster2image/models"
 	"image"
 )
 
 type Driver interface {
-	Render(bands []godal.Band, width, height uint) (image.Image, error)
+	Render(bbox [4]float64, width, height uint) (image.Image, error)
+	Release() error
+	setStyle(style *models.RasterStyle)
 }
