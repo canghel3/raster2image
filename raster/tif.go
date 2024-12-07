@@ -109,25 +109,44 @@ func (td *TifDriver) getOffsetsAndSize(bbox [4]float64) (xOff, yOff, xSize, ySiz
 
 	minX, minY, maxX, maxY := bbox[0], bbox[1], bbox[2], bbox[3]
 
-	// Convert from georeferenced to pixel space
+	// Convert from georeferenced to pixel space (floating indices)
 	xOffFloat := (minX - gt[0]) / gt[1]
-	yOffFloat := (maxY - gt[3]) / gt[5] // Note: gt[5] is usually negative
+	yOffFloat := (maxY - gt[3]) / gt[5] // gt[5] is typically negative
 	xEndFloat := (maxX - gt[0]) / gt[1]
 	yEndFloat := (minY - gt[3]) / gt[5]
 
-	// Use floor/ceil to get pixel boundaries
-	xOff = int(math.Floor(xOffFloat))
-	yOff = int(math.Floor(yOffFloat))
-	xEnd := int(math.Ceil(xEndFloat))
-	yEnd := int(math.Ceil(yEndFloat))
+	// Snap to integral pixel boundaries
+	xOffInt := int(math.Floor(xOffFloat))
+	yOffInt := int(math.Floor(yOffFloat))
+	xEndInt := int(math.Ceil(xEndFloat))
+	yEndInt := int(math.Ceil(yEndFloat))
+
+	// Recompute the snapped bounding box from these integral pixel coords
+	// This ensures the bbox now aligns exactly with pixel edges.
+	snappedMinX := gt[0] + float64(xOffInt)*gt[1]
+	snappedMaxY := gt[3] + float64(yOffInt)*gt[5]
+	snappedMaxX := gt[0] + float64(xEndInt)*gt[1]
+	snappedMinY := gt[3] + float64(yEndInt)*gt[5]
+
+	// Now recompute offsets and size using the snapped bbox
+	// This step ensures consistency:
+	newXOffFloat := (snappedMinX - gt[0]) / gt[1]
+	newYOffFloat := (snappedMaxY - gt[3]) / gt[5]
+	newXEndFloat := (snappedMaxX - gt[0]) / gt[1]
+	newYEndFloat := (snappedMinY - gt[3]) / gt[5]
+
+	xOff = int(math.Floor(newXOffFloat))
+	yOff = int(math.Floor(newYOffFloat))
+	xEnd := int(math.Ceil(newXEndFloat))
+	yEnd := int(math.Ceil(newYEndFloat))
 
 	xSize = xEnd - xOff
 	ySize = yEnd - yOff
 
+	// Clamp values to dataset boundaries
 	dsWidth := td.dataset.Structure().SizeX
 	dsHeight := td.dataset.Structure().SizeY
 
-	// Clamp values to dataset boundaries
 	if xOff < 0 {
 		xSize += xOff
 		xOff = 0
