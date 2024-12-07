@@ -41,7 +41,7 @@ func NewTifDriver(data TifDriverData) Driver {
 func (td *TifDriver) Render(bbox [4]float64, width, height uint) (image.Image, error) {
 	switch len(td.dataset.Bands()) {
 	case 1:
-		return td.renderSingleBand(bbox, width, height)
+		return td.renderSingleBandV2(bbox, width, height)
 	case 2:
 		return nil, fmt.Errorf("cannot render raster %s with 2 Bands", td.name)
 	case 3:
@@ -51,6 +51,43 @@ func (td *TifDriver) Render(bbox [4]float64, width, height uint) (image.Image, e
 	}
 
 	return nil, nil
+}
+
+func (td *TifDriver) renderSingleBandV2(bbox [4]float64, width, height uint) (image.Image, error) {
+	switches := []string{
+		"-te", fmt.Sprintf("%f", bbox[0]), fmt.Sprintf("%f", bbox[1]), fmt.Sprintf("%f", bbox[2]), fmt.Sprintf("%f", bbox[3]),
+		"-te_srs", "EPSG:3857",
+		"-ts", fmt.Sprintf("%d", width), fmt.Sprintf("%d", height),
+		"-s_srs", "EPSG:3857",
+		"-t_srs", "EPSG:3857",
+		"-of", "MEM",
+	}
+
+	td.lock.Lock()
+	warped, err := td.dataset.Warp("", switches)
+	td.lock.Unlock()
+	if err != nil {
+		return nil, err
+	}
+
+	band := warped.Bands()[0]
+	var data = make([]float64, width*height)
+	td.lock.RLock()
+	err = band.Read(0, 0, data, int(width), int(height))
+	td.lock.RUnlock()
+	if err != nil {
+		return nil, err
+	}
+
+	if td.style != nil {
+		//setStyle given, so use rgb renderer with the setStyle schema
+		rgb := render.NewRGBDrawer(data, int(width), int(height), render.StyleOption(*td.style))
+		return rgb.Draw()
+	}
+
+	grayscale := render.Grayscale(data, int(width), int(height), td.min, td.max)
+	return grayscale.Draw()
+
 }
 
 func (td *TifDriver) renderSingleBand(bbox [4]float64, width, height uint) (image.Image, error) {
