@@ -32,6 +32,8 @@ func Load(path string, options ...LoadOption) (Driver, error) {
 		return nil, err
 	}
 
+	//TODO: run gdaladdo to create internal pyramids to improve efficiency
+
 	min, max, err := utils.MinMaxDs(ds)
 	if err != nil {
 		return nil, err
