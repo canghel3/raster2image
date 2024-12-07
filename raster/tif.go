@@ -6,6 +6,7 @@ import (
 	"github.com/canghel3/raster2image/models"
 	"github.com/canghel3/raster2image/render"
 	"image"
+	"log"
 	"math"
 	"sync"
 )
@@ -73,8 +74,10 @@ func (td *TifDriver) renderSingleBand(bbox [4]float64, width, height uint) (imag
 	finalHeight := int(height)
 	var dataToDraw []float64
 	if finalWidth != xSize || finalHeight != ySize {
-		dataToDraw = bilinearResample(data, xSize, ySize, finalWidth, finalHeight)
+		log.Println("resampling")
+		dataToDraw = nearestResample(data, xSize, ySize, finalWidth, finalHeight)
 	} else {
+		log.Println("NOT RESAMPLING")
 		dataToDraw = data
 	}
 
